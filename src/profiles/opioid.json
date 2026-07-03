@@ -1,0 +1,23 @@
+{
+  "id": "opioid",
+  "name": "Opioids",
+  "class": "opioid",
+  "warning": null,
+  "shared": {
+    "warmCast": {"curve": "early",  "max": 0.70},
+    "vignette": {"curve": "smooth", "max": 0.85},
+    "acuity":   {"curve": "smooth", "max": 0.50},
+    "tracers":  {"curve": "smooth", "max": 0.45},
+    "desat":    {"curve": "early",  "max": 0.20},
+    "bloom":    {"curve": "smooth", "max": 0.35}
+  },
+  "signatureParams": { "nodDepth": 0.9, "nodRate": 0.7, "goldenCast": 0.8, "pinhole": 0.85 },
+  "tierNotes": [
+    "Threshold: warmth — the golden-hour cast arrives first (early warmCast).",
+    "Light: dimming + the first shallow nod per minute.",
+    "Common: regular nod cycle — lid descends, blur and darkening ramp, snap back; pinholing visible.",
+    "Strong: deep nods to 90% black, heavy lids, syrupy tracers.",
+    "Heavy: near-continuous nodding with seconds of black; motion slowed throughout."
+  ],
+  "sources": ["psychonautwiki:opioids", "psychonautwiki:visual-effects"]
+}

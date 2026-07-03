@@ -1,0 +1,30 @@
+{
+  "id": "lsd",
+  "name": "LSD",
+  "class": "psychedelic",
+  "warning": null,
+  "shared": {
+    "breathing":   {"curve": "smooth", "max": 0.85},
+    "drift":       {"curve": "smooth", "max": 0.55},
+    "flowWarp":    {"curve": "late",   "max": 0.70},
+    "tracers":     {"curve": "smooth", "max": 0.75},
+    "colorSat":    {"curve": "early",  "max": 0.90},
+    "hueDrift":    {"curve": "late",   "max": 0.60},
+    "patternMask": {"curve": "late",   "max": 0.80},
+    "symmetry":    {"curve": "late",   "max": 0.55},
+    "sharpenHalo": {"curve": "early",  "max": 0.60},
+    "snow":        {"curve": "early",  "max": 0.30},
+    "scintilla":   {"curve": "smooth", "max": 0.35},
+    "aberration":  {"curve": "smooth", "max": 0.55},
+    "bloom":       {"curve": "smooth", "max": 0.30}
+  },
+  "signatureParams": { "hdSharpen": 0.7, "fractalTile": 0.6, "rainbowTrail": 0.8 },
+  "tierNotes": [
+    "Threshold: brick lines barely drifting; colors a notch cleaner than they should be (early colorSat + sharpenHalo carry this tier alone).",
+    "Light: color pop unmistakable, faint breathing on large surfaces; still deniable in motion.",
+    "Common: full edge-tangent drift, short rainbow-tinged trails; smooth-curve params reach midrange.",
+    "Strong: lattice surfaces in texture, long rainbow trails; late params (patternMask, hueDrift, flowWarp) wake up.",
+    "Heavy: fractal tiling folds the scene onto itself; everything simultaneous, scene still recognizable but geometric."
+  ],
+  "sources": ["psychonautwiki:lsd", "psychonautwiki:visual-effects", "kluver-1928"]
+}

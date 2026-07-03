@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phenomenon — Visual Simulator</title>
+<style>
+  :root{
+    --ink:#e8e4da;
+    --dim:#8a857a;
+    --panel:rgba(8,7,10,0.74);
+    --line:rgba(232,228,218,0.14);
+    --accent:#c9f24b;
+    --ego:#f2c14b;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#000;font-family:ui-monospace,'SF Mono','Cascadia Mono',Menlo,monospace}
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+  body.nocursor, body.nocursor *{cursor:none !important}
+
+  #panel{
+    position:fixed;top:16px;left:16px;width:272px;max-height:calc(100vh - 32px);
+    overflow-y:auto;background:var(--panel);backdrop-filter:blur(14px);
+    border:1px solid var(--line);border-radius:10px;padding:14px 16px 16px;
+    color:var(--ink);transition:opacity .5s, transform .5s;z-index:10;
+  }
+  #panel.hidden{opacity:0;transform:translateX(-12px);pointer-events:none}
+  #panel::-webkit-scrollbar{width:4px}
+  #panel::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
+
+  .hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+  .hd h1{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+  .hd .lv{font-size:10px;color:var(--accent);letter-spacing:.08em}
+  .hd .lv.ego{color:var(--ego)}
+  .sub{font-size:10px;color:var(--dim);line-height:1.5;margin-bottom:12px}
+
+  .presets{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px}
+  .presets button{
+    background:transparent;border:1px solid var(--line);border-radius:6px;
+    color:var(--dim);font:inherit;font-size:8.5px;padding:7px 0;cursor:pointer;
+    letter-spacing:.02em;transition:all .18s;
+  }
+  .presets button:hover{color:var(--ink);border-color:var(--ink)}
+  .presets button.on{color:#0b0b0d;background:var(--accent);border-color:var(--accent);font-weight:700}
+  .presets button[data-p="6"].on{background:var(--ego);border-color:var(--ego)}
+
+  .sec{font-size:9px;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;margin:14px 0 8px;opacity:.7}
+
+  .ctl{margin-bottom:11px}
+  .ctl label{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-bottom:5px;letter-spacing:.04em}
+  .ctl label output{color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:2px;
+    background:var(--line);border-radius:1px;outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:11px;height:11px;border-radius:50%;
+    background:var(--ink);border:none;transition:transform .15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.25);background:var(--accent)}
+  input[type=range]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:var(--ink);border:none}
+
+  .toggles{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:4px}
+  .tog{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--dim);cursor:pointer;user-select:none;letter-spacing:.03em}
+  .tog input{display:none}
+  .tog .box{
+    width:12px;height:12px;border:1px solid var(--line);border-radius:3px;flex:none;
+    display:grid;place-items:center;transition:all .15s;
+  }
+  .tog input:checked + .box{background:var(--accent);border-color:var(--accent)}
+  .tog input:checked + .box::after{content:'';width:5px;height:5px;background:#0b0b0d;border-radius:1px}
+  .tog:hover{color:var(--ink)}
+
+  .row{display:flex;gap:6px;margin-top:12px}
+  .row button{
+    flex:1;background:transparent;border:1px solid var(--line);border-radius:6px;
+    color:var(--dim);font:inherit;font-size:10px;padding:8px 0;cursor:pointer;transition:all .18s;letter-spacing:.04em;
+  }
+  .row button:hover{color:var(--ink);border-color:var(--ink)}
+
+  .hint{font-size:9px;color:var(--dim);margin-top:12px;line-height:1.7;opacity:.75}
+  kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font-size:9px}
+
+  #tap{
+    position:fixed;bottom:14px;left:16px;z-index:9;color:var(--dim);
+    font-size:10px;letter-spacing:.08em;opacity:0;transition:opacity .5s;pointer-events:none;
+  }
+  #tap.show{opacity:.8}
+  #zoomHud{
+    position:fixed;bottom:14px;right:16px;z-index:9;color:var(--dim);
+    font-size:10px;letter-spacing:.08em;opacity:0;transition:opacity .4s;pointer-events:none;
+    font-variant-numeric:tabular-nums;
+  }
+
+  @media (max-width:640px){ #panel{width:calc(100vw - 32px)} }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="panel">
+  <div class="hd"><h1>Phenomenon</h1><div class="lv" id="lvl">L·III</div></div>
+  <div class="sub">Real-time simulation of psychedelic visual phenomenology — form constants, drift, breathing, tracers, entity emergence, dissolution.</div>
+
+  <div class="presets" id="presets">
+    <button data-p="0">I</button>
+    <button data-p="1">II</button>
+    <button data-p="2" class="on">III</button>
+    <button data-p="3">IV</button>
+    <button data-p="4">V</button>
+    <button data-p="5">ENT</button>
+    <button data-p="6">EGO</button>
+  </div>
+
+  <div class="sec">field</div>
+  <div class="ctl"><label>breathing / drift <output id="o-breath"></output></label>
+    <input type="range" id="s-breath" min="0" max="1" step="0.01"></div>
+  <div class="ctl"><label>pattern depth <output id="o-warp"></output></label>
+    <input type="range" id="s-warp" min="0" max="1" step="0.01"></div>
+  <div class="ctl"><label>symmetry (form constants) <output id="o-sym"></output></label>
+    <input type="range" id="s-sym" min="0" max="1" step="0.01"></div>
+  <div class="ctl"><label>tracers / trails <output id="o-trace"></output></label>
+    <input type="range" id="s-trace" min="0" max="0.97" step="0.01"></div>
+  <div class="ctl"><label>tempo <output id="o-speed"></output></label>
+    <input type="range" id="s-speed" min="0.1" max="2.5" step="0.01"></div>
+
+  <div class="sec">color</div>
+  <div class="ctl"><label>color drift <output id="o-hue"></output></label>
+    <input type="range" id="s-hue" min="0" max="1" step="0.01"></div>
+  <div class="ctl"><label>saturation <output id="o-sat"></output></label>
+    <input type="range" id="s-sat" min="0" max="1" step="0.01"></div>
+  <div class="ctl"><label>chromatic fringing <output id="o-ab"></output></label>
+    <input type="range" id="s-ab" min="0" max="1" step="0.01"></div>
+  <div class="ctl"><label>visual snow <output id="o-snow"></output></label>
+    <input type="range" id="s-snow" min="0" max="1" step="0.01"></div>
+
+  <div class="sec">deep space</div>
+  <div class="ctl"><label>entity presence <output id="o-entity"></output></label>
+    <input type="range" id="s-entity" min="0" max="1" step="0.01"></div>
+  <div class="ctl"><label>ego dissolution <output id="o-ego"></output></label>
+    <input type="range" id="s-ego" min="0" max="1" step="0.01"></div>
+
+  <div class="toggles">
+    <label class="tog"><input type="checkbox" id="t-eyes" checked><span class="box"></span>eyes in patterns</label>
+    <label class="tog"><input type="checkbox" id="t-faces" checked><span class="box"></span>emergent faces</label>
+    <label class="tog"><input type="checkbox" id="t-jester" checked><span class="box"></span>the jester</label>
+    <label class="tog"><input type="checkbox" id="t-mandala" checked><span class="box"></span>chrysanthemum</label>
+    <label class="tog"><input type="checkbox" id="t-cursor"><span class="box"></span>hide cursor</label>
+    <label class="tog"><input type="checkbox" id="t-invert"><span class="box"></span>polarity waves</label>
+  </div>
+
+  <div class="row">
+    <button id="b-pause">pause</button>
+    <button id="b-zoom">reset zoom</button>
+    <button id="b-hide">hide panel</button>
+  </div>
+  <div class="hint">
+    <kbd>scroll</kbd> zoom · <kbd>H</kbd> panel · <kbd>C</kbd> cursor · <kbd>space</kbd> pause · <kbd>1–7</kbd> levels · mouse steers the field
+  </div>
+</div>
+<div id="tap">press H for controls</div>
+<div id="zoomHud">zoom 1.00×</div>
+
+<script>
+"use strict";
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl', {antialias:false, preserveDrawingBuffer:false});
+if(!gl){ document.body.innerHTML = '<p style="color:#888;padding:40px;font-family:monospace">WebGL is unavailable in this browser.</p>'; }
+
+/* ---------------- shaders ---------------- */
+const VERT = `
+attribute vec2 aPos;
+varying vec2 vUv;
+void main(){ vUv = aPos*0.5+0.5; gl_Position = vec4(aPos,0.0,1.0); }`;
+
+/* Simulation pass: pattern field + entity phenomena + feedback tracers. */
+const SIM = `
+precision highp float;
+varying vec2 vUv;
+uniform vec2  uRes;
+uniform float uTime;
+uniform sampler2D uPrev;
+uniform float uBreath, uWarp, uSym, uTrace, uHue, uSat, uSpeed, uZoom;
+uniform float uEntity, uEgo, uInvert;
+uniform float uEyes, uFaces, uJester, uMandala;
+uniform vec2  uMouse;
+
+#define PI 3.14159265359
+#define TAU 6.28318530718
+
+/* ---- hash & noise ---- */
+float hash1(float n){ return fract(sin(n)*43758.5453123); }
+vec2 hash2(vec2 p){
+  p = vec2(dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)));
+  return -1.0 + 2.0*fract(sin(p)*43758.5453123);
+}
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f*f*(3.0-2.0*f);
+  return mix( mix(dot(hash2(i+vec2(0,0)), f-vec2(0,0)),
+                  dot(hash2(i+vec2(1,0)), f-vec2(1,0)), u.x),
+              mix(dot(hash2(i+vec2(0,1)), f-vec2(0,1)),
+                  dot(hash2(i+vec2(1,1)), f-vec2(1,1)), u.x), u.y );
+}
+float fbm(vec2 p){
+  float a = 0.5, s = 0.0;
+  mat2 R = mat2(0.8,0.6,-0.6,0.8);
+  for(int i=0;i<6;i++){ s += a*noise(p); p = R*p*2.03 + 11.7; a *= 0.5; }
+  return s;
+}
+
+/* triple domain warp — the organic 'liquid' motion */
+float field(vec2 p, float t, out vec2 q, out vec2 r){
+  q = vec2( fbm(p + 0.10*t), fbm(p + vec2(5.2, 1.3) - 0.07*t) );
+  r = vec2( fbm(p + 3.2*q + vec2(1.7, 9.2) + 0.15*t),
+            fbm(p + 3.2*q + vec2(8.3, 2.8) - 0.12*t) );
+  return fbm(p + 3.0*r*uWarp + 0.5*q);
+}
+
+/* kaleidoscopic fold */
+vec2 kalei(vec2 p, float n){
+  float a = atan(p.y, p.x);
+  float seg = TAU / n;
+  a = mod(a, seg);
+  a = abs(a - seg*0.5);
+  return vec2(cos(a), sin(a)) * length(p);
+}
+
+/* Kluver form constants: tunnel / spiral / lattice mappings */
+vec2 tunnel(vec2 p, float t){
+  float r = length(p) + 1e-4;
+  return vec2( atan(p.y,p.x)/PI, 0.35/r + t*0.15 );
+}
+vec2 spiral(vec2 p, float t){
+  float r = length(p) + 1e-4;
+  float a = atan(p.y,p.x) + log(r)*2.6 + t*0.12;
+  return vec2(cos(a), sin(a))*r;
+}
+float lattice(vec2 p){
+  float v = 0.0;
+  for(int i=0;i<3;i++){
+    float a = float(i)*PI/3.0;
+    v += cos(dot(p, vec2(cos(a),sin(a)))*8.0);
+  }
+  return v/3.0;
+}
+
+/* IQ cosine palette */
+vec3 pal(float t, vec3 a, vec3 b, vec3 c, vec3 d){ return a + b*cos(TAU*(c*t+d)); }
+
+vec3 hueRot(vec3 c, float a){
+  const vec3 k = vec3(0.57735);
+  float ca = cos(a), sa = sin(a);
+  return c*ca + cross(k,c)*sa + k*dot(k,c)*(1.0-ca);
+}
+
+/* ============ ENTITY PHENOMENA ============ */
+
+/* almond eye SDF (vesica) */
+float sdVesica(vec2 p, float r, float d){
+  p = abs(p);
+  float b = sqrt(max(r*r - d*d, 1e-4));
+  return ((p.y-b)*d > p.x*b) ? length(p-vec2(0.0,b)) : length(p-vec2(-d,0.0))-r;
+}
+
+/* a single watching eye: sclera, ringed iris, dilating pupil, blink */
+vec3 drawEye(vec2 q, float s, float t, float seed){
+  q /= s;
+  if(dot(q,q) > 2.5) return vec3(0.0);
+  /* blink: closes briefly on a slow irregular cycle */
+  float open = clamp(smoothstep(0.02, 0.16, abs(sin(t*0.45 + seed*17.0))), 0.05, 1.0);
+  vec2 e = vec2(q.x, q.y/open);
+  float lid = sdVesica(e.yx, 1.0, 0.55);
+  float inside = smoothstep(0.03, -0.01, lid);
+  float r = length(e);
+  vec3 col = vec3(0.0);
+  /* sclera — faintly luminous */
+  col += inside * vec3(0.75,0.72,0.95)*0.30;
+  /* iris — concentric rotating rings */
+  float iris = smoothstep(0.52, 0.48, r);
+  float ring = 0.5 + 0.5*cos(r*40.0 - t*1.5 + atan(e.y,e.x)*7.0 + seed*30.0);
+  vec3 irisCol = pal(ring*0.25 + seed*0.7 + t*0.02,
+                     vec3(0.45), vec3(0.45), vec3(1.0,0.7,0.4), vec3(0.0,0.25,0.55));
+  col = mix(col, irisCol*1.15, inside*iris);
+  /* pupil — slow dilation */
+  float pr = 0.20 + 0.07*sin(t*0.3 + seed*9.0);
+  float pup = smoothstep(pr+0.02, pr, r);
+  col = mix(col, vec3(0.01,0.0,0.03), inside*pup);
+  /* glint */
+  col += inside*iris*smoothstep(0.06,0.0,length(e-vec2(0.14,0.15)))*0.8;
+  /* rim glow */
+  col += smoothstep(0.05,0.0,abs(lid))*vec3(0.55,0.30,0.85)*0.6*open;
+  return col;
+}
+
+/* an emergent face — two eyes, brow arcs, mouth, coalescing from the field */
+vec3 drawFace(vec2 q, float s, float t, float seed){
+  q /= s;
+  if(dot(q,q) > 3.2) return vec3(0.0);
+  vec3 col = vec3(0.0);
+  /* faint oval contour, uneven like pareidolia */
+  vec2 oq = q*vec2(1.0,0.82);
+  float wob = 0.06*sin(atan(q.y,q.x)*5.0 + t*0.4 + seed*10.0);
+  float face = abs(length(oq)-1.0-wob) - 0.02;
+  col += smoothstep(0.06,0.0,face)*vec3(0.45,0.30,0.75)*0.55;
+  /* eyes */
+  col += drawEye(q-vec2(-0.42,0.28), 0.30, t, seed);
+  col += drawEye(q-vec2( 0.42,0.28), 0.30, t, seed+0.31);
+  /* brow arcs */
+  vec2 b1 = q-vec2(-0.42,0.52); vec2 b2 = q-vec2(0.42,0.52);
+  col += smoothstep(0.025,0.0, abs(length(b1*vec2(1.0,1.8))-0.28))*step(0.0,b1.y)*vec3(0.5,0.3,0.8)*0.5;
+  col += smoothstep(0.025,0.0, abs(length(b2*vec2(1.0,1.8))-0.28))*step(0.0,b2.y)*vec3(0.5,0.3,0.8)*0.5;
+  /* mouth — lower arc of a circle, slowly shifting expression */
+  vec2 mq = q-vec2(0.0,-0.38 - 0.05*sin(t*0.2+seed*5.0));
+  float mouth = abs(length(mq*vec2(1.0,1.3+0.5*sin(t*0.15+seed)))-0.34)-0.022;
+  col += smoothstep(0.03,0.0,mouth)*step(mq.y,-0.02)*vec3(0.7,0.35,0.9)*0.7;
+  return col;
+}
+
+/* the jester — harlequin motley, spiked cap, wide grin. gatekeeper archetype. */
+vec3 drawJester(vec2 q, float s, float t){
+  q /= s;
+  if(dot(q,q) > 4.5) return vec3(0.0);
+  vec3 col = vec3(0.0);
+  /* harlequin diamond motley, animated */
+  vec2 dq = q*7.0 + vec2(0.0, t*0.15);
+  float diam = step(0.0, sin(dq.x+dq.y)*sin(dq.x-dq.y));
+  vec3 motA = hueRot(vec3(0.85,0.10,0.45), t*0.1);
+  vec3 motB = hueRot(vec3(0.10,0.65,0.60), t*0.1);
+  vec3 motley = mix(motA, motB, diam);
+
+  /* spiked cap above the head — three lobes */
+  vec2 hq = q - vec2(0.0, 0.62);
+  float ha = atan(hq.x, hq.y);
+  float rHat = 0.22 + 0.62*pow(max(cos(ha*5.0),0.0), 2.0);
+  float hat = length(hq) - rHat;
+  float hatm = smoothstep(0.02,-0.01,hat) * step(abs(ha), 1.5) * step(0.0, hq.y+0.15);
+  col += hatm * motley;
+  /* bells at the spike tips */
+  col += smoothstep(0.06,0.02,length(hq - vec2(0.0,0.86)))*vec3(1.2,1.1,0.5);
+  col += smoothstep(0.06,0.02,length(hq - 0.80*vec2(sin(1.05),cos(1.05))))*vec3(1.2,1.1,0.5);
+  col += smoothstep(0.06,0.02,length(hq - 0.80*vec2(sin(-1.05),cos(-1.05))))*vec3(1.2,1.1,0.5);
+
+  /* diamond face */
+  float fd = abs(q.x)/0.62 + abs(q.y)/0.85 - 1.0;
+  float fm = smoothstep(0.02,-0.01,fd);
+  vec3 skin = mix(vec3(0.92,0.88,0.98), motley, 0.18);
+  col = mix(col, skin, fm);
+  /* two-tone harlequin face split */
+  col = mix(col, col*mix(vec3(1.15,0.85,1.05), vec3(0.85,1.05,1.15), step(0.0,q.x)), fm);
+
+  /* eyes — sharp diamonds, glinting */
+  float e1 = abs(q.x+0.24)/0.10 + abs(q.y-0.16)/0.14 - 1.0;
+  float e2 = abs(q.x-0.24)/0.10 + abs(q.y-0.16)/0.14 - 1.0;
+  col = mix(col, vec3(0.02,0.0,0.05), fm*smoothstep(0.02,-0.02,e1));
+  col = mix(col, vec3(0.02,0.0,0.05), fm*smoothstep(0.02,-0.02,e2));
+  col += fm*smoothstep(0.03,0.0,length(q-vec2(-0.22,0.19)))*vec3(1.5);
+  col += fm*smoothstep(0.03,0.0,length(q-vec2( 0.26,0.19)))*vec3(1.5);
+
+  /* the grin — wide crescent, slightly too wide */
+  vec2 mq = q - vec2(0.0,-0.18);
+  float grin = abs(length(mq*vec2(0.85,1.6))-0.40)-0.035;
+  float gm = smoothstep(0.03,-0.01,grin)*step(mq.y,-0.02);
+  col = mix(col, vec3(0.05,0.0,0.08), fm*gm);
+  /* teeth glints along the grin */
+  float teeth = step(0.5, fract(atan(mq.y,mq.x)*4.0));
+  col += fm*gm*teeth*vec3(0.9,0.85,1.0)*0.55;
+
+  return col;
+}
+
+/* chrysanthemum mandala — the pre-breakthrough bloom */
+vec3 mandala(vec2 p, float t){
+  float r = length(p), a = atan(p.y,p.x);
+  float pet  = cos(a*12.0 + sin(r*8.0 - t*0.8)*2.0) * cos(a*6.0 - t*0.25);
+  float pet2 = cos(a*24.0 - r*14.0 + t*0.6);
+  float rings= cos(r*22.0 - t*1.6);
+  float m = pet*0.45 + pet2*0.25 + rings*0.30;
+  float fall = exp(-r*r*1.4);
+  vec3 c = pal(m*0.35 + r*0.6 + t*0.04,
+               vec3(0.5), vec3(0.5), vec3(0.9,1.0,0.7), vec3(0.05,0.35,0.65));
+  return c * smoothstep(0.15, 0.85, m*0.5+0.5) * fall * 1.6;
+}
+
+void main(){
+  float t = uTime * uSpeed;
+  vec2 uv = vUv;
+  vec2 p = (uv - 0.5) * vec2(uRes.x/uRes.y, 1.0);
+
+  /* mouse steers, wheel zooms */
+  p -= (uMouse - 0.5) * vec2(uRes.x/uRes.y,1.0) * 0.35;
+  p /= uZoom;
+
+  /* ---- ego dissolution: hyperbolic inversion pulls space inside-out ---- */
+  float egoPulse = 0.5 + 0.5*sin(t*0.18);
+  vec2 pinv = p / (dot(p,p) + 0.35);
+  p = mix(p, pinv, uEgo * (0.35 + 0.25*egoPulse));
+
+  /* ---- breathing ---- */
+  float R = length(p);
+  float breathe = 1.0
+      + uBreath * 0.085 * sin(t*0.55 + R*4.0)
+      + uBreath * 0.045 * sin(t*0.23 - R*7.0 + atan(p.y,p.x)*2.0);
+  p *= breathe;
+  float rot = t*0.03 + uBreath*0.25*sin(t*0.11) + uEgo*t*0.05;
+  p = mat2(cos(rot),-sin(rot),sin(rot),cos(rot)) * p;
+
+  /* ---- form-constant morph cycle ---- */
+  float cyc = fract(t*0.008);
+  float wLat = smoothstep(0.05,0.25,cyc)*(1.0-smoothstep(0.30,0.50,cyc));
+  float wSpi = smoothstep(0.30,0.50,cyc)*(1.0-smoothstep(0.55,0.75,cyc));
+  float wTun = smoothstep(0.55,0.75,cyc)*(1.0-smoothstep(0.85,0.98,cyc));
+  wTun = max(wTun, uEgo*0.6); /* dissolution pulls toward the tunnel */
+
+  float symEff = clamp(uSym + uEgo*0.5, 0.0, 1.0);
+  float nSeg = 6.0 + 3.0*sin(t*0.05) + 2.0*sin(t*0.013) + uEgo*6.0;
+  vec2 pk = mix(p, kalei(p, floor(nSeg)+1.0), clamp(symEff*1.4,0.0,1.0));
+
+  vec2 pf = pk;
+  pf = mix(pf, spiral(pk,t), wSpi*symEff);
+  pf = mix(pf, tunnel(pk,t)*2.2, wTun*symEff);
+
+  /* ---- layered warped field ---- */
+  vec2 q, r;
+  float f  = field(pf*1.6, t, q, r);
+  float f2 = field(pf*3.4 + 7.0, t*1.3, q, r);
+  float lat = lattice(pk*1.5 + q*2.0 + t*0.02);
+
+  float sig = f*0.65 + f2*0.35;
+  sig = mix(sig, sig*0.55 + lat*0.45, wLat*symEff);
+  sig += 0.06*sin(40.0*sig + t*2.0) * uWarp;
+
+  /* ---- base color ---- */
+  float hueBase = t*0.03*uHue*3.0 + R*0.35 + q.x*0.6;
+  vec3 col = pal(sig*1.4 + hueBase,
+                 vec3(0.52,0.50,0.53), vec3(0.48,0.50,0.47),
+                 vec3(1.00,0.87,0.61), vec3(0.00,0.15,0.42));
+  vec3 col2 = pal(dot(r,r)*0.9 + hueBase*0.7,
+                  vec3(0.50), vec3(0.50), vec3(0.80,1.00,0.66), vec3(0.53,0.20,0.05));
+  col = mix(col, col2, 0.35 + 0.25*sin(t*0.07));
+  col = hueRot(col, t*0.12*uHue);
+
+  float edge = pow(1.0-abs(sin(sig*14.0 + t*0.6)), 6.0);
+  col += edge * hueRot(vec3(0.9,0.5,1.2), t*0.2) * (0.35+0.65*uWarp);
+  col *= 0.85 + 0.45*exp(-R*R*1.2);
+
+  /* ---- polarity waves: slow negative-image inversions sweeping through ---- */
+  float inv = uInvert * smoothstep(0.75, 0.95, sin(t*0.21 + R*2.5)*0.5+0.5);
+  col = mix(col, 1.0 - col, inv*0.85);
+
+  /* ============ entity layer — figures coalesce out of the pattern ============ */
+  float ent = uEntity;
+  if(ent > 0.001){
+    vec3 eCol = vec3(0.0);
+    /* pareidolia gate: entities only cohere where the field is coherent */
+    float coh = smoothstep(-0.1, 0.35, sig);
+
+    /* --- eyes scattered through the kaleidoscope space --- */
+    if(uEyes > 0.5){
+      for(int i=0;i<6;i++){
+        float fi = float(i);
+        float ea = fi*1.047 + t*0.04 + hash1(fi*3.1)*6.28;
+        float er = 0.55 + 0.55*hash1(fi*7.7) + 0.15*sin(t*0.1+fi);
+        vec2 ep = pk - er*vec2(cos(ea), sin(ea));
+        float vis = smoothstep(0.35, 0.75, noise(vec2(fi*13.7, t*0.09)) * 0.5 + 0.5);
+        eCol += drawEye(ep, 0.16 + 0.08*hash1(fi*5.3), t, fi*0.37) * vis * 0.85;
+      }
+    }
+
+    /* --- emergent faces, drifting, coalescing and dissolving --- */
+    if(uFaces > 0.5){
+      for(int i=0;i<2;i++){
+        float fi = float(i);
+        vec2 fp = p - 1.1*vec2( noise(vec2(t*0.03, fi*9.1))*1.6,
+                                noise(vec2(fi*4.7, t*0.025))*1.2 );
+        float vis = smoothstep(0.30, 0.80, noise(vec2(fi*23.1, t*0.055))*0.5+0.5);
+        eCol += drawFace(fp, 0.55, t, fi*1.7) * vis * 0.8;
+      }
+    }
+
+    /* --- the jester: appears rarely, holds, withdraws --- */
+    if(uJester > 0.5){
+      float jvis = smoothstep(0.55, 0.85, noise(vec2(t*0.030, 41.3))*0.5+0.5);
+      jvis = max(jvis, uEgo*0.35); /* the gatekeeper attends dissolution */
+      vec2 jp = p - vec2(0.45*sin(t*0.07), 0.25*sin(t*0.05+2.0));
+      /* springy, bouncing motion */
+      jp.y += 0.06*abs(sin(t*1.2))*jvis;
+      float tilt = 0.12*sin(t*0.5);
+      jp = mat2(cos(tilt),-sin(tilt),sin(tilt),cos(tilt))*jp;
+      eCol += drawJester(jp, 0.85, t) * jvis;
+    }
+
+    /* entities weave with the field rather than sit on top of it */
+    eCol *= (0.55 + 0.45*coh);
+    eCol *= 0.8 + 0.2*sin(sig*9.0 + t);
+    col += eCol * ent;
+  }
+
+  /* --- chrysanthemum mandala core --- */
+  if(uMandala > 0.5){
+    float mAmt = max(ent*0.6, uEgo);
+    col += mandala(p, t) * mAmt;
+  }
+
+  /* ============ ego death: the white light ============ */
+  if(uEgo > 0.001){
+    /* central watching eye inside the bloom */
+    float eyeVis = uEgo * (0.45 + 0.35*sin(t*0.13));
+    col += drawEye(p, 0.42, t*0.6, 99.7) * max(eyeVis, 0.0) * uMandala;
+    /* expanding shockwave rings */
+    col += uEgo * pow(max(sin(R*13.0 - t*2.4), 0.0), 24.0) * vec3(1.0,0.95,0.85) * 0.5;
+    /* the dissolution — white light swallowing the center, pulsing outward */
+    float white = uEgo * (0.35 + 0.30*sin(t*0.4)) * exp(-R*R*(2.4 - 1.2*egoPulse)) * 2.2;
+    col = mix(col, vec3(1.08,1.05,1.0), clamp(white, 0.0, 0.92));
+    /* peripheral desaturation — the self thinning out */
+    float lum0 = dot(col, vec3(0.2126,0.7152,0.0722));
+    col = mix(col, vec3(lum0), uEgo*0.25*smoothstep(1.2, 2.2, R));
+  }
+
+  /* saturation */
+  float lum = dot(col, vec3(0.2126,0.7152,0.0722));
+  col = mix(vec3(lum), col, 0.4 + uSat*1.1);
+
+  /* ---- feedback: tracers / afterimages ---- */
+  vec2 fbUV = vUv - 0.5;
+  float fa = 0.0035*sin(t*0.4) + uEgo*0.004;
+  fbUV = mat2(cos(fa),-sin(fa),sin(fa),cos(fa)) * fbUV;
+  fbUV *= 0.9965 - 0.004*uBreath*sin(t*0.5) - uEgo*0.003;
+  fbUV += 0.5;
+  vec3 prev = texture2D(uPrev, fbUV).rgb;
+  prev = hueRot(prev, 0.02 + 0.03*uHue);
+  col = mix(col, max(col, prev*0.985), uTrace);
+
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+/* Post pass: chromatic aberration, visual snow, halation, vignette */
+const POST = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uTex;
+uniform vec2 uRes;
+uniform float uTime, uAb, uSnow, uEgo;
+
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
+
+void main(){
+  vec2 uv = vUv;
+  vec2 c = uv - 0.5;
+  float r2 = dot(c,c);
+
+  uv = 0.5 + c*(1.0 + 0.02*r2*sin(uTime*0.3));
+
+  float ab = uAb * (0.002 + 0.014*r2) * (1.0 + uEgo*0.8);
+  vec3 col;
+  col.r = texture2D(uTex, uv + c*ab).r;
+  col.g = texture2D(uTex, uv).g;
+  col.b = texture2D(uTex, uv - c*ab).b;
+
+  vec2 px = 3.0/uRes;
+  vec3 blur = texture2D(uTex, uv+vec2(px.x,0)).rgb + texture2D(uTex, uv-vec2(px.x,0)).rgb
+            + texture2D(uTex, uv+vec2(0,px.y)).rgb + texture2D(uTex, uv-vec2(0,px.y)).rgb;
+  blur *= 0.25;
+  col += blur*blur*(0.18 + uEgo*0.22);
+
+  float n = hash(gl_FragCoord.xy + fract(uTime)*vec2(419.0,157.0));
+  col += (n-0.5) * uSnow * 0.16;
+  float sp = step(0.9985 - uSnow*0.0015, hash(floor(gl_FragCoord.xy/1.5) + floor(uTime*24.0)));
+  col += sp * uSnow * 0.6;
+
+  col = col/(1.0+col*0.25);
+  col *= 1.0 - (0.35 - uEgo*0.2)*r2;
+
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+/* ---------------- GL plumbing ---------------- */
+function mkShader(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s);
+  return s;
+}
+function mkProg(fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, mkShader(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(p, mkShader(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw gl.getProgramInfoLog(p);
+  return p;
+}
+const simProg = mkProg(SIM), postProg = mkProg(POST);
+
+const quad = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+function bindQuad(prog){
+  const loc = gl.getAttribLocation(prog, 'aPos');
+  gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+}
+
+let W=0, H=0, texA, texB, fbA, fbB;
+function mkTarget(w,h){
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  const f = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);
+  return {t,f};
+}
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio||1, 1.6);
+  const w = Math.floor(innerWidth*dpr), h = Math.floor(innerHeight*dpr);
+  if(w===W && h===H) return;
+  W=w; H=h; canvas.width=w; canvas.height=h;
+  const a = mkTarget(w,h), b = mkTarget(w,h);
+  texA=a.t; fbA=a.f; texB=b.t; fbB=b.f;
+}
+addEventListener('resize', resize); resize();
+
+/* ---------------- state / controls ---------------- */
+const P = {breath:.55, warp:.6, sym:.45, trace:.55, hue:.5, sat:.65, ab:.45, snow:.35, speed:1.0, entity:0, ego:0};
+const PRESETS = [
+  {breath:.15, warp:.25, sym:.10, trace:.15, hue:.15, sat:.35, ab:.15, snow:.15, speed:.60, entity:0.0, ego:0.0},
+  {breath:.35, warp:.42, sym:.25, trace:.35, hue:.30, sat:.50, ab:.30, snow:.25, speed:.80, entity:0.0, ego:0.0},
+  {breath:.55, warp:.60, sym:.45, trace:.55, hue:.50, sat:.65, ab:.45, snow:.35, speed:1.00, entity:0.0, ego:0.0},
+  {breath:.75, warp:.80, sym:.70, trace:.75, hue:.70, sat:.80, ab:.65, snow:.50, speed:1.25, entity:.20, ego:0.0},
+  {breath:.95, warp:1.0, sym:1.0, trace:.90, hue:.95, sat:1.0, ab:.90, snow:.70, speed:1.60, entity:.45, ego:.10},
+  {breath:.70, warp:.85, sym:.80, trace:.80, hue:.75, sat:.90, ab:.70, snow:.45, speed:1.15, entity:1.0, ego:.20},
+  {breath:.85, warp:.95, sym:1.0, trace:.93, hue:.85, sat:.85, ab:.85, snow:.55, speed:1.35, entity:.75, ego:1.0},
+];
+const NAMES = ['L·I','L·II','L·III','L·IV','L·V','ENTITY','EGO DEATH'];
+
+const keys = Object.keys(P);
+function syncUI(){
+  keys.forEach(k=>{
+    const s = document.getElementById('s-'+k), o = document.getElementById('o-'+k);
+    if(s){ s.value = P[k]; o.textContent = (+P[k]).toFixed(2); }
+  });
+}
+keys.forEach(k=>{
+  const s = document.getElementById('s-'+k);
+  if(!s) return;
+  s.addEventListener('input', ()=>{ P[k] = +s.value; document.getElementById('o-'+k).textContent = P[k].toFixed(2);
+    document.querySelectorAll('.presets button').forEach(b=>b.classList.remove('on')); });
+});
+function applyPreset(i){
+  Object.assign(P, PRESETS[i]); syncUI();
+  document.querySelectorAll('.presets button').forEach((b,j)=>b.classList.toggle('on', j===i));
+  const lvl = document.getElementById('lvl');
+  lvl.textContent = NAMES[i];
+  lvl.classList.toggle('ego', i===6);
+}
+document.getElementById('presets').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(b) applyPreset(+b.dataset.p);
+});
+syncUI();
+
+/* toggles */
+const T = {eyes:true, faces:true, jester:true, mandala:true, invert:false};
+['eyes','faces','jester','mandala','invert'].forEach(k=>{
+  document.getElementById('t-'+k).addEventListener('change', e=>{ T[k] = e.target.checked; });
+});
+document.getElementById('t-cursor').addEventListener('change', e=>{
+  document.body.classList.toggle('nocursor', e.target.checked);
+});
+
+let paused = false, panelHidden = false;
+const panel = document.getElementById('panel'), tap = document.getElementById('tap');
+function togglePanel(){ panelHidden=!panelHidden; panel.classList.toggle('hidden',panelHidden); tap.classList.toggle('show',panelHidden); }
+function togglePause(){ paused=!paused; document.getElementById('b-pause').textContent = paused?'resume':'pause'; }
+document.getElementById('b-pause').addEventListener('click', togglePause);
+document.getElementById('b-hide').addEventListener('click', togglePanel);
+document.getElementById('b-zoom').addEventListener('click', ()=>{ zoom.target = 1; });
+addEventListener('keydown', e=>{
+  if(e.key===' '){ e.preventDefault(); togglePause(); }
+  if(e.key==='h'||e.key==='H') togglePanel();
+  if(e.key==='c'||e.key==='C'){
+    const cb = document.getElementById('t-cursor');
+    cb.checked = !cb.checked;
+    document.body.classList.toggle('nocursor', cb.checked);
+  }
+  if(e.key>='1'&&e.key<='7') applyPreset(+e.key-1);
+});
+
+/* ---- zoom via scroll wheel ---- */
+const zoom = {v:1, target:1};
+const zoomHud = document.getElementById('zoomHud');
+let hudTimer = null;
+addEventListener('wheel', e=>{
+  if(panel.contains(e.target) && !panelHidden) return; /* let the panel scroll */
+  e.preventDefault();
+  zoom.target *= Math.exp(-e.deltaY * 0.0012);
+  zoom.target = Math.min(Math.max(zoom.target, 0.25), 12);
+  zoomHud.textContent = 'zoom ' + zoom.target.toFixed(2) + '\u00d7';
+  zoomHud.style.opacity = .85;
+  clearTimeout(hudTimer);
+  hudTimer = setTimeout(()=>{ zoomHud.style.opacity = 0; }, 1200);
+}, {passive:false});
+
+const mouse = {x:.5,y:.5, tx:.5, ty:.5};
+addEventListener('pointermove', e=>{ mouse.tx = e.clientX/innerWidth; mouse.ty = 1-e.clientY/innerHeight; });
+
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){
+  paused = true; document.getElementById('b-pause').textContent = 'resume';
+}
+
+/* ---------------- render loop ---------------- */
+const U = {};
+function uni(prog, name){ const key = name+':'+(prog===simProg?'s':'p'); return U[key] || (U[key]=gl.getUniformLocation(prog,name)); }
+
+let simTime = 0, last = performance.now(), flip = false;
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min((now-last)/1000, .05); last = now;
+  if(!paused) simTime += dt;
+  mouse.x += (mouse.tx-mouse.x)*0.03; mouse.y += (mouse.ty-mouse.y)*0.03;
+  zoom.v += (zoom.target - zoom.v)*0.08;
+
+  const src = flip?texA:texB, dstF = flip?fbB:fbA, dstT = flip?texB:texA;
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dstF);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(simProg); bindQuad(simProg);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src);
+  gl.uniform1i(uni(simProg,'uPrev'),0);
+  gl.uniform2f(uni(simProg,'uRes'),W,H);
+  gl.uniform1f(uni(simProg,'uTime'),simTime);
+  gl.uniform1f(uni(simProg,'uBreath'),P.breath);
+  gl.uniform1f(uni(simProg,'uWarp'),P.warp);
+  gl.uniform1f(uni(simProg,'uSym'),P.sym);
+  gl.uniform1f(uni(simProg,'uTrace'),P.trace);
+  gl.uniform1f(uni(simProg,'uHue'),P.hue);
+  gl.uniform1f(uni(simProg,'uSat'),P.sat);
+  gl.uniform1f(uni(simProg,'uSpeed'),P.speed);
+  gl.uniform1f(uni(simProg,'uZoom'),zoom.v);
+  gl.uniform1f(uni(simProg,'uEntity'),P.entity);
+  gl.uniform1f(uni(simProg,'uEgo'),P.ego);
+  gl.uniform1f(uni(simProg,'uInvert'),T.invert?1:0);
+  gl.uniform1f(uni(simProg,'uEyes'),T.eyes?1:0);
+  gl.uniform1f(uni(simProg,'uFaces'),T.faces?1:0);
+  gl.uniform1f(uni(simProg,'uJester'),T.jester?1:0);
+  gl.uniform1f(uni(simProg,'uMandala'),T.mandala?1:0);
+  gl.uniform2f(uni(simProg,'uMouse'),mouse.x,mouse.y);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(postProg); bindQuad(postProg);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dstT);
+  gl.uniform1i(uni(postProg,'uTex'),0);
+  gl.uniform2f(uni(postProg,'uRes'),W,H);
+  gl.uniform1f(uni(postProg,'uTime'),simTime);
+  gl.uniform1f(uni(postProg,'uAb'),P.ab);
+  gl.uniform1f(uni(postProg,'uSnow'),P.snow);
+  gl.uniform1f(uni(postProg,'uEgo'),P.ego);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+
+  flip = !flip;
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

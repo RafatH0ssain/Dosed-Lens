@@ -1,0 +1,24 @@
+{
+  "id": "dph",
+  "name": "Diphenhydramine",
+  "class": "deliriant",
+  "warning": "Deliriant presentation is deliberately unsettling: realistic peripheral hallucinations, shadow figures, insect-like motion. One-time confirmation required.",
+  "shared": {
+    "desat":    {"curve": "smooth", "max": 0.70},
+    "acuity":   {"curve": "smooth", "max": 0.60},
+    "vignette": {"curve": "smooth", "max": 0.50},
+    "floaters": {"curve": "smooth", "max": 0.70},
+    "tracers":  {"curve": "early",  "max": 0.20},
+    "snow":     {"curve": "early",  "max": 0.25},
+    "warmCast": {"curve": "early",  "max": 0.20}
+  },
+  "signatureParams": { "sepiaGreen": 0.7, "blurWave": 0.8, "skitter": 0.9, "smoke": 0.7, "pareidolia": 0.8, "figureEvents": 0.8 },
+  "tierNotes": [
+    "Threshold: unease — slight darkening, nothing nameable.",
+    "Light: first dark specks in the corners of the frame.",
+    "Common: skitter clusters in periphery/dark regions + smoke wisps drifting; blur waves begin.",
+    "Strong: shadow faces fading in from the darkest regions, dissolving on approach; heavy blur waves.",
+    "Heavy: 'someone standing there' figure events, near-monochrome sickly cast, constant peripheral motion."
+  ],
+  "sources": ["psychonautwiki:diphenhydramine", "psychonautwiki:deliriant", "psychonautwiki:visual-effects"]
+}

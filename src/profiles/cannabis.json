@@ -1,0 +1,25 @@
+{
+  "id": "cannabis",
+  "name": "Cannabis",
+  "class": "cannabinoid",
+  "warning": null,
+  "shared": {
+    "warmCast":  {"curve": "early",  "max": 0.35},
+    "bloom":     {"curve": "early",  "max": 0.30},
+    "tracers":   {"curve": "smooth", "max": 0.35},
+    "stutter":   {"curve": "spike",  "max": 0.50},
+    "breathing": {"curve": "late",   "max": 0.40},
+    "acuity":    {"curve": "late",   "max": 0.25},
+    "vignette":  {"curve": "late",   "max": 0.20},
+    "colorSat":  {"curve": "early",  "max": 0.20}
+  },
+  "signatureParams": { "hiccup": 0.7, "peripheralOnly": 0.9, "redShift": 0.4 },
+  "tierNotes": [
+    "Threshold: nothing you could swear to (this profile is the realism floor).",
+    "Light: warmth + faint halos around lights.",
+    "Common: time hiccups (spike-curve stutter, held frames every 4–9 s) + peripheral softness — still almost deniable.",
+    "Strong: visible breathing at the frame edges only, persistent motion lag.",
+    "Heavy: edible-tier — real breathing, halo bloom, constant lag."
+  ],
+  "sources": ["psychonautwiki:cannabis", "psychonautwiki:visual-effects"]
+}

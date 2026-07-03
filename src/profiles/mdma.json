@@ -1,0 +1,25 @@
+{
+  "id": "mdma",
+  "name": "MDMA",
+  "class": "entactogen",
+  "warning": null,
+  "shared": {
+    "starbursts":   {"curve": "early",  "max": 0.90},
+    "bloom":        {"curve": "smooth", "max": 0.70},
+    "colorSat":     {"curve": "early",  "max": 0.80},
+    "warmCast":     {"curve": "smooth", "max": 0.40},
+    "jitter":       {"curve": "spike",  "max": 0.70},
+    "doubleVision": {"curve": "late",   "max": 0.35},
+    "scintilla":    {"curve": "smooth", "max": 0.50},
+    "snow":         {"curve": "early",  "max": 0.15}
+  },
+  "signatureParams": { "starRays": 0.8, "magenta": 0.7, "shimmer": 0.6, "nystagmus": 0.9 },
+  "tierNotes": [
+    "Threshold: lights slightly juicier — halos a touch wider than the lens should give.",
+    "Light: clear halos + magenta-leaning warmth.",
+    "Common: starbursts on every light source + first episodic eye-wiggle bursts (spike-curve jitter — bursts, never constant).",
+    "Strong: constant fine shimmer on bright regions, strong frequent wiggle.",
+    "Heavy: doubled starbursts (late doubleVision), judder, peripheral shadow-flicker at low weight."
+  ],
+  "sources": ["psychonautwiki:mdma", "psychonautwiki:visual-effects"]
+}

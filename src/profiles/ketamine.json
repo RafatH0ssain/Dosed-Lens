@@ -1,0 +1,26 @@
+{
+  "id": "ketamine",
+  "name": "Ketamine",
+  "class": "dissociative",
+  "warning": null,
+  "shared": {
+    "doubleVision": {"curve": "smooth", "max": 0.85},
+    "stutter":      {"curve": "smooth", "max": 0.80},
+    "acuity":       {"curve": "smooth", "max": 0.60},
+    "desat":        {"curve": "smooth", "max": 0.65},
+    "coolCast":     {"curve": "smooth", "max": 0.55},
+    "dof":          {"curve": "smooth", "max": 0.50},
+    "vignette":     {"curve": "late",   "max": 0.90},
+    "tracers":      {"curve": "early",  "max": 0.20},
+    "ghosting":     {"curve": "smooth", "max": 0.40}
+  },
+  "signatureParams": { "recession": 0.8, "flatten": 0.85, "kholeTunnel": 1.0, "verticalDouble": 0.9 },
+  "tierNotes": [
+    "Threshold: slight softness, nothing more (all curves smooth — nothing spikes early).",
+    "Light: mild vertical doubling + painting-flattening begins; colors cool.",
+    "Common: clear doubling, frame-hold stutter, desaturation toward gray-blue.",
+    "Strong: world visibly shrinking inside a dark surround; tunnel forming (late vignette wakes).",
+    "Heavy: k-hole — small flat bright painting receding in darkness, heavy stutter."
+  ],
+  "sources": ["psychonautwiki:ketamine", "psychonautwiki:visual-effects"]
+}

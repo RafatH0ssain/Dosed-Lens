@@ -1,0 +1,25 @@
+{
+  "id": "alcohol",
+  "name": "Alcohol",
+  "class": "depressant",
+  "warning": null,
+  "shared": {
+    "doubleVision": {"curve": "smooth", "max": 0.80},
+    "sway":         {"curve": "smooth", "max": 0.70},
+    "ghosting":     {"curve": "smooth", "max": 0.60},
+    "warmCast":     {"curve": "early",  "max": 0.45},
+    "vignette":     {"curve": "smooth", "max": 0.60},
+    "acuity":       {"curve": "smooth", "max": 0.50},
+    "stutter":      {"curve": "late",   "max": 0.40},
+    "desat":        {"curve": "late",   "max": 0.15}
+  },
+  "signatureParams": { "hunting": 0.8, "spins": 1.0, "flush": 0.5 },
+  "tierNotes": [
+    "Threshold: nothing (alcohol genuinely shows nothing at threshold).",
+    "Light: softness + warm flush.",
+    "Common: horizontal doubling appears with slow convergence hunting; horizon sway.",
+    "Strong: constant diplopia + pan-lag smear + field narrowing.",
+    "Heavy: the spins — accumulated roll at ~0.5 rpm, radial blur, dropped frames."
+  ],
+  "sources": ["psychonautwiki:alcohol", "psychonautwiki:visual-effects"]
+}

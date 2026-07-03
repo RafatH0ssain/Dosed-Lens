@@ -1,0 +1,24 @@
+{
+  "id": "meth",
+  "name": "Methamphetamine",
+  "class": "stimulant",
+  "warning": "High-dose / sleep-deprived presentation. Uses peripheral flicker. Photosensitivity note applies.",
+  "shared": {
+    "sharpenHalo": {"curve": "early",  "max": 0.85},
+    "desat":       {"curve": "smooth", "max": 0.40},
+    "coolCast":    {"curve": "smooth", "max": 0.35},
+    "snow":        {"curve": "early",  "max": 0.80},
+    "scintilla":   {"curve": "smooth", "max": 0.30},
+    "aberration":  {"curve": "early",  "max": 0.20},
+    "vignette":    {"curve": "late",   "max": 0.25}
+  },
+  "signatureParams": { "crawl": 0.8, "shadowEvents": 0.9, "silhouette": 0.7, "harshContrast": 0.8 },
+  "tierNotes": [
+    "Threshold: extra crispness — the over-sharpened vigilant look (early sharpenHalo).",
+    "Light: visual snow visible on flat surfaces.",
+    "Common: texture crawl in flat regions + first peripheral corner flickers that vanish when the mouse approaches.",
+    "Strong: frequent shadow events, harsh contrast, cold desaturation.",
+    "Heavy: rare humanoid silhouettes at frame edge, constant crawl, snowstorm."
+  ],
+  "sources": ["psychonautwiki:methamphetamine", "psychonautwiki:stimulant-psychosis", "psychonautwiki:visual-effects"]
+}

@@ -1,0 +1,195 @@
+/** Boot, render loop, state. */
+
+window.addEventListener('error', (e) => {
+  const el = document.getElementById('app');
+  if (el && !el.querySelector('.boot-error')) {
+    const pre = document.createElement('pre');
+    pre.className = 'boot-error';
+    pre.style.cssText =
+      'position:fixed;inset:auto 16px 16px 16px;max-height:50vh;overflow:auto;' +
+      'color:#f2a24b;background:rgba(8,7,10,.9);border:1px solid rgba(242,162,75,.4);' +
+      'border-radius:8px;padding:12px;font-size:11px;z-index:99;white-space:pre-wrap;';
+    pre.textContent = String(e.error?.stack ?? e.message);
+    el.appendChild(pre);
+  }
+});
+
+import { createContext, forceResize } from './gl/context';
+import { Graph, PassSource } from './gl/graph';
+import { Resolver, loadProfiles } from './engine/resolver';
+import { TIER_STOPS } from './engine/curves';
+import { dominantColors } from './engine/domcolors';
+import { WebMRecorder, savePNG } from './engine/recorder';
+import { createPanel, setFPS } from './ui/panel';
+import { createCompare } from './ui/compare';
+
+import common from './passes/common.glsl?raw';
+import analysisFrag from './passes/analysis.frag?raw';
+import geometryFrag from './passes/geometry.frag?raw';
+import patternFrag from './passes/pattern.frag?raw';
+import colorFrag from './passes/color.frag?raw';
+import temporalFrag from './passes/temporal.frag?raw';
+import acuityFrag from './passes/acuity.frag?raw';
+import grainFrag from './passes/grain.frag?raw';
+import postFrag from './passes/post.frag?raw';
+import nullSig from './signatures/null.glsl?raw';
+
+const signatureMods = import.meta.glob('./signatures/*.glsl', {
+  eager: true,
+  query: '?raw',
+  import: 'default',
+}) as Record<string, string>;
+
+function signatureFor(id: string): string {
+  return signatureMods[`./signatures/${id}.glsl`] ?? nullSig;
+}
+
+const PASSES: PassSource[] = [
+  { name: 'geometry', body: geometryFrag, signature: true, gates: null },
+  { name: 'pattern', body: patternFrag, signature: false, gates: ['patternMask'] },
+  { name: 'color', body: colorFrag, signature: true, gates: null },
+  { name: 'temporal', body: temporalFrag, signature: true, gates: null },
+  { name: 'acuity', body: acuityFrag, signature: false, gates: ['acuity', 'sharpenHalo', 'ghosting', 'dof'] },
+  { name: 'grain', body: grainFrag, signature: false, gates: ['snow', 'scintilla', 'floaters', 'starbursts'] },
+  { name: 'post', body: postFrag, signature: false, gates: null },
+];
+
+const canvas = document.getElementById('c') as HTMLCanvasElement;
+const ctx = createContext(canvas);
+const graph = new Graph(ctx, PASSES, analysisFrag, common);
+const profiles = loadProfiles();
+const resolver = new Resolver();
+const recorder = new WebMRecorder();
+
+const state = {
+  substance: 'lsd',
+  intensity: TIER_STOPS[2] as number, // Common
+  paused: false,
+  split: 0,
+  time: 0,
+  mouse: [0.5, 0.5] as [number, number],
+};
+
+const panel = createPanel(document.getElementById('app')!, profiles, {
+  onSubstance(id) {
+    state.substance = id;
+    const p = profiles.get(id)!;
+    resolver.setProfile(p);
+    graph.setSignature(signatureFor(id), Object.keys(p.signatureParams));
+    panel.setSubstance(p);
+  },
+  onIntensity(v) {
+    state.intensity = v;
+  },
+  onSample(url) {
+    loadImageURL(url);
+  },
+  onUpload(file) {
+    const url = URL.createObjectURL(file);
+    loadImageURL(url, () => URL.revokeObjectURL(url));
+    panel.setActiveSample(null);
+  },
+  onPause(p) {
+    state.paused = p;
+  },
+  onSplit(on) {
+    state.split = on ? 0.5 : 0;
+  },
+  onPNG() {
+    pngRequested = true;
+  },
+  onWebM() {
+    if (recorder.recording) recorder.stop();
+    else recorder.start(canvas, `dosed-lens-${state.substance}`);
+    return recorder.recording;
+  },
+});
+createCompare(canvas, () => state.split, (v) => (state.split = v));
+
+function loadImageURL(url: string, done?: () => void): void {
+  const img = new Image();
+  img.onload = () => {
+    graph.setImage(img, img.naturalWidth, img.naturalHeight);
+    graph.seedColors.set(dominantColors(img));
+    const m = url.match(/samples\/(.+)\.png/);
+    panel.setActiveSample(m ? m[1] : null);
+    done?.();
+  };
+  img.src = url;
+}
+
+// keyboard
+addEventListener('keydown', (e) => {
+  if (e.key === ' ' && !(e.target instanceof HTMLInputElement)) {
+    e.preventDefault();
+    state.paused = !state.paused;
+    panel.setPaused(state.paused);
+  }
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 5) {
+    state.intensity = TIER_STOPS[n - 1];
+    panel.setIntensity(state.intensity);
+  }
+});
+addEventListener('pointermove', (e) => {
+  state.mouse[0] = e.clientX / innerWidth;
+  state.mouse[1] = 1 - e.clientY / innerHeight;
+});
+
+// initial state
+panel.setIntensity(state.intensity);
+const p0 = profiles.get(state.substance)!;
+resolver.setProfile(p0);
+graph.setSignature(signatureFor(state.substance), Object.keys(p0.signatureParams));
+panel.setSubstance(p0);
+loadImageURL('/samples/01-room-lamp.png');
+
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  state.paused = true;
+  panel.setPaused(true);
+}
+
+let pngRequested = false;
+let last = performance.now();
+let fpsFrames = 0;
+let fpsLast = performance.now();
+
+const frameState = {
+  time: 0,
+  dt: 0,
+  intensity: 0,
+  tier: resolver.tier,
+  shared: resolver.shared,
+  sig: resolver.sig,
+  mouse: state.mouse,
+  split: 0,
+};
+
+function frame(now: number): void {
+  requestAnimationFrame(frame);
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  if (!state.paused) state.time += dt;
+
+  resolver.resolve(state.intensity, state.time, state.paused ? 0 : dt);
+  frameState.time = state.time;
+  frameState.dt = state.paused ? 0 : dt;
+  frameState.intensity = state.intensity;
+  frameState.split = state.split;
+  graph.render(frameState);
+
+  if (pngRequested) {
+    pngRequested = false;
+    savePNG(canvas, `dosed-lens-${state.substance}-${state.intensity.toFixed(2)}`);
+  }
+
+  fpsFrames++;
+  if (now - fpsLast > 500) {
+    setFPS(`${Math.round((fpsFrames * 1000) / (now - fpsLast))} fps`);
+    fpsFrames = 0;
+    fpsLast = now;
+  }
+}
+
+forceResize(ctx);
+requestAnimationFrame(frame);

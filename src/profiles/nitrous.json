@@ -1,0 +1,24 @@
+{
+  "id": "nitrous",
+  "name": "Nitrous oxide",
+  "class": "dissociative",
+  "warning": "Uses rhythmic pulsing/flicker. Photosensitivity note applies.",
+  "shared": {
+    "echo":      {"curve": "smooth", "max": 0.85},
+    "warmCast":  {"curve": "smooth", "max": 0.50},
+    "acuity":    {"curve": "smooth", "max": 0.35},
+    "bloom":     {"curve": "smooth", "max": 0.40},
+    "scintilla": {"curve": "smooth", "max": 0.60},
+    "tracers":   {"curve": "early",  "max": 0.30},
+    "whiteOut":  {"curve": "late",   "max": 0.70}
+  },
+  "signatureParams": { "throb": 1.0, "envelope": 1.0, "flange": 0.8 },
+  "tierNotes": [
+    "Threshold: one soft pulse as the envelope starts; barely a breath.",
+    "Light: gentle 2.5 Hz throb in scale and brightness.",
+    "Common: full wah-wah — throb + phase-picked frame echo + warm dimming mid-envelope.",
+    "Strong: deep throb, strong flanging, scintilla bursts at envelope peaks.",
+    "Heavy: near-whiteout at LFO peaks (late whiteOut); the whole arc decays and restarts every ~25 s."
+  ],
+  "sources": ["psychonautwiki:nitrous-oxide", "psychonautwiki:visual-effects"]
+}

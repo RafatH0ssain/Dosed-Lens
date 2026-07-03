@@ -1,0 +1,28 @@
+{
+  "id": "dmt",
+  "name": "DMT",
+  "class": "psychedelic",
+  "warning": "Uses rapid flicker/shimmer. Photosensitivity note applies.",
+  "shared": {
+    "breathing":   {"curve": "early",  "max": 0.45},
+    "flowWarp":    {"curve": "smooth", "max": 0.55},
+    "tracers":     {"curve": "early",  "max": 0.50},
+    "colorSat":    {"curve": "early",  "max": 1.00},
+    "hueDrift":    {"curve": "smooth", "max": 0.70},
+    "patternMask": {"curve": "smooth", "max": 0.95},
+    "symmetry":    {"curve": "late",   "max": 0.90},
+    "snow":        {"curve": "early",  "max": 0.25},
+    "scintilla":   {"curve": "smooth", "max": 0.45},
+    "aberration":  {"curve": "smooth", "max": 0.60},
+    "bloom":       {"curve": "smooth", "max": 0.50}
+  },
+  "signatureParams": { "shimmer": 0.9, "neonQuant": 0.8, "mandala": 0.9, "breakthrough": 1.0, "onsetRush": 1.0 },
+  "tierNotes": [
+    "Threshold: 8–13 Hz shimmer on high-contrast edges — faster than anything else in the set.",
+    "Light: crisp fast geometry inside textures; colors already saturated (colorSat is early and maxed).",
+    "Common: chrysanthemum mandala blooming over the scene center, masked by luminance.",
+    "Strong: geometry dominant, photo ghosting through; symmetry (late) folds the field kaleidoscopically.",
+    "Heavy: breakthrough — full tunnel + entity layer crossfades in, photo dissolved, palette seeded from the image's own dominant colors."
+  ],
+  "sources": ["psychonautwiki:dmt", "psychonautwiki:visual-effects"]
+}

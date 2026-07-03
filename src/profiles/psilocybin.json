@@ -1,0 +1,27 @@
+{
+  "id": "psilocybin",
+  "name": "Psilocybin",
+  "class": "psychedelic",
+  "warning": null,
+  "shared": {
+    "breathing":   {"curve": "smooth", "max": 0.95},
+    "drift":       {"curve": "smooth", "max": 0.40},
+    "flowWarp":    {"curve": "smooth", "max": 0.80},
+    "tracers":     {"curve": "smooth", "max": 0.65},
+    "colorSat":    {"curve": "early",  "max": 0.60},
+    "hueDrift":    {"curve": "smooth", "max": 0.40},
+    "patternMask": {"curve": "late",   "max": 0.60},
+    "colorBleed":  {"curve": "late",   "max": 0.45},
+    "aberration":  {"curve": "smooth", "max": 0.30},
+    "bloom":       {"curve": "smooth", "max": 0.35}
+  },
+  "signatureParams": { "meltRate": 0.8, "rippleAmp": 0.6, "earthHue": 0.7, "organicGlow": 0.5 },
+  "tierNotes": [
+    "Threshold: colors slightly deeper, especially greens and ambers (early colorSat only).",
+    "Light: slow large-scale breathing begins; period noticeably longer than LSD's.",
+    "Common: melt visibly begins — surfaces slump on the ~20 s accumulator cycle; water-ripple sheen from the brightest light.",
+    "Strong: full slumping surfaces, edges wiggle organically, olive/amber convergence obvious.",
+    "Heavy: scene flows like wet paint, near-total melt with pattern bleed-through (late patternMask + colorBleed)."
+  ],
+  "sources": ["psychonautwiki:psilocybin-mushrooms", "psychonautwiki:visual-effects"]
+}
