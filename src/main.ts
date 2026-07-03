@@ -70,6 +70,10 @@ const state = {
   mouse: [0.5, 0.5] as [number, number],
 };
 
+function syncHash(): void {
+  history.replaceState(null, '', `#s=${state.substance}&i=${state.intensity.toFixed(2)}`);
+}
+
 const panel = createPanel(document.getElementById('app')!, profiles, {
   onSubstance(id) {
     state.substance = id;
@@ -77,9 +81,11 @@ const panel = createPanel(document.getElementById('app')!, profiles, {
     resolver.setProfile(p);
     graph.setSignature(signatureFor(id), Object.keys(p.signatureParams));
     panel.setSubstance(p);
+    syncHash();
   },
   onIntensity(v) {
     state.intensity = v;
+    syncHash();
   },
   onSample(url) {
     loadImageURL(url);
@@ -136,13 +142,20 @@ addEventListener('pointermove', (e) => {
   state.mouse[1] = 1 - e.clientY / innerHeight;
 });
 
-// initial state
+// initial state, overridable via URL hash (#s=lsd&i=0.5&img=02-brick-wall)
+const hash = new URLSearchParams(location.hash.slice(1));
+const hs = hash.get('s');
+if (hs && profiles.has(hs)) state.substance = hs;
+const hi = parseFloat(hash.get('i') ?? '');
+if (!Number.isNaN(hi)) state.intensity = Math.min(1, Math.max(0, hi));
+
 panel.setIntensity(state.intensity);
 const p0 = profiles.get(state.substance)!;
 resolver.setProfile(p0);
 graph.setSignature(signatureFor(state.substance), Object.keys(p0.signatureParams));
 panel.setSubstance(p0);
-loadImageURL('/samples/01-room-lamp.png');
+loadImageURL(`/samples/${hash.get('img') ?? '01-room-lamp'}.png`);
+
 
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
   state.paused = true;
