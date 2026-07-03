@@ -6,9 +6,9 @@
   "shared": {
     "doubleVision": {"curve": "smooth", "max": 0.85},
     "stutter":      {"curve": "smooth", "max": 0.80},
-    "acuity":       {"curve": "smooth", "max": 0.60},
-    "desat":        {"curve": "smooth", "max": 0.65},
-    "coolCast":     {"curve": "smooth", "max": 0.55},
+    "acuity":       {"curve": "smooth", "max": 0.35},
+    "desat":        {"curve": "smooth", "max": 0.75},
+    "coolCast":     {"curve": "smooth", "max": 0.65},
     "dof":          {"curve": "smooth", "max": 0.50},
     "vignette":     {"curve": "late",   "max": 0.90},
     "tracers":      {"curve": "early",  "max": 0.20},
