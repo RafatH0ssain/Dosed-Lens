@@ -251,15 +251,17 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     let cur = this.srcTex;
     for (let i = 0; i < active.length; i++) {
       const p = active[i];
-      const last = i === active.length - 1;
-      const target = last ? this.prevPing.write : this.scenePing.write;
+      // the temporal pass writes the feedback history: uPrev is its own
+      // previous output, kept pre-post so vignette/grain don't accumulate
+      const isTemporal = p.def.name === 'temporal';
+      const target = isTemporal ? this.prevPing.write : this.scenePing.write;
       gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb);
       gl.viewport(0, 0, target.w, target.h);
       gl.useProgram(p.bundle.prog);
       this.bindCommon(p.bundle, f, cur);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       cur = target.tex;
-      if (!last) this.scenePing.swap();
+      if (!isTemporal) this.scenePing.swap();
     }
 
     // present to canvas
