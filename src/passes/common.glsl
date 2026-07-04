@@ -71,6 +71,34 @@ float lumAt(vec2 uv, float mip){ return textureLod(uLum, uv, mip).r; }
 /* rotate a 2D point */
 vec2 rot2(vec2 p, float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c)*p; }
 
+/* ---- form-constant coordinate helpers (shared by salvia/DMT signatures) ----
+   technique ref: Klüver 1966 / Bressloff-Cowan 2001 form constants; standard
+   polar fold. Our own implementations — math only, no third-party code. */
+
+/* polar-fold kaleidoscope: mirror a centred point into one wedge of `wedges`
+   slices. Input & output are centred coords (origin = image centre). Folding
+   the *sampling* coordinate re-tiles the scene into mirrored copies of itself. */
+vec2 kaleiFold(vec2 p, float wedges){
+  float a = atan(p.y, p.x);
+  float r = length(p);
+  float seg = TAU / max(wedges, 1.0);
+  a = mod(a, seg);
+  a = abs(a - seg * 0.5);
+  return vec2(cos(a), sin(a)) * r;
+}
+
+/* retino-cortical log-polar map (x,y) → (log r, θ): radial lines become
+   horizontals and concentric circles become verticals — the frame in which
+   tunnels/spirals/shears are the natural gridlines, so a shear along it curves
+   correctly instead of skewing flat. */
+vec2 logPolar(vec2 p){
+  float r = length(p) + 1e-6;
+  return vec2(log(r), atan(p.y, p.x));
+}
+vec2 invLogPolar(vec2 lp){
+  return vec2(cos(lp.y), sin(lp.y)) * exp(lp.x);
+}
+
 /* sample the history ring ~secondsBack ago (slots written every 2nd frame,
    ≈30 slots/s; ring depth 16 → ~0.53 s reach) */
 vec3 histSample(vec2 uv, float secondsBack){
