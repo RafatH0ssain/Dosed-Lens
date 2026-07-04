@@ -162,7 +162,8 @@ void main(){
     return;
   }
   float t = uTime;
-  vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
+  /* kaleidoscope / form-constant centre follows the cursor (M6.5) */
+  vec2 p = (vUv - uMouse) * vec2(uAspect, 1.0);
 
   /* ---- ported form-constant morph cycle ---- */
   float cyc = fract(t*0.008);

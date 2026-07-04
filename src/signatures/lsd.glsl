@@ -37,9 +37,10 @@ vec3 sigColor(vec3 col, vec2 uv){
   float heavy = smoothstep(0.72, 1.0, uIntensity) * uSig_fractalTile;
   if (heavy > 0.004) {
     vec2 asp = vec2(uAspect, 1.0);
-    vec2 p = (uv - 0.5) * asp;
-    vec2 k1 = lsdFold(rot2(p, uTime*0.02), 6.0) / asp + 0.5;
-    vec2 k2 = lsdFold(rot2(p, -uTime*0.013 + 0.7), 8.0) / asp + 0.5;
+    vec2 ctr = uMouse;                 /* fractal-tiling centre follows the cursor */
+    vec2 p = (uv - ctr) * asp;
+    vec2 k1 = lsdFold(rot2(p, uTime*0.02), 6.0) / asp + ctr;
+    vec2 k2 = lsdFold(rot2(p, -uTime*0.013 + 0.7), 8.0) / asp + ctr;
     vec3 c1 = texture(uScene, clamp(k1, 0.0, 1.0)).rgb;
     vec3 c2 = texture(uScene, clamp(k2, 0.0, 1.0)).rgb;
     float texE = smoothstep(0.015, 0.10, abs(lumAt(uv, 2.0) - lumAt(uv, 5.0)));

@@ -8,16 +8,16 @@
     "jitter":    {"curve": "smooth", "max": 0.30},
     "stutter":   {"curve": "late",   "max": 0.70},
     "sway":      {"curve": "early",  "max": 0.35},
-    "desat":     {"curve": "late",   "max": 0.25},
+    "desat":     {"curve": "late",   "max": 0.12},
     "vignette":  {"curve": "smooth", "max": 0.30}
   },
-  "signatureParams": { "foldTile": 0.9, "seamPull": 0.8, "pageTurn": 0.7, "inkLines": 0.7, "realityBreak": 1.0 },
+  "signatureParams": { "foldTile": 0.9, "seamPull": 0.8, "pageTurn": 0.7, "inkLines": 0.5, "realityBreak": 1.0 },
   "tierNotes": [
     "Threshold: faint lateral lean — the field is dragged sideways along a curved seam (early sway + low seamPull); scene otherwise intact.",
-    "Light: the seam pull is clear; the very first mirror fold begins to wake (foldTile ramps from ~0.3 intensity).",
-    "Common: visible recursive re-tiling — the scene folds into a couple of mirrored copies of itself — plus the constant sideways pull; still legible as this room.",
-    "Strong: deeper fold stack (copies-of-copies), cartoon posterize + Sobel ink lines (late), ~7 s page-turn rolls the whole tiling over; time steps toward ~11 fps.",
-    "Heavy: reality break — the fold-tiled scene is flattened into a hard cartoon world (image-derived, not a pasted overlay) with a sliding row of flat dark 'beings' standing in it; the original photo is gone. Comparable in force to DMT breakthrough, in salvia's own re-tiling idiom (realityBreak crossfade, full at Heavy)."
+    "Light: the seam pull is clear; the very first mirror fold begins to wake (foldTile ramps from ~0.26 intensity).",
+    "Common: visible recursive re-tiling — the scene folds into a couple of mirrored copies of itself around the cursor — plus the constant sideways pull; still legible as this room.",
+    "Strong: louder, larger fold stack (copies-of-copies) taking up more of the frame, deeper zoom; the vivid cartoon remap begins (realityBreak ramps from 0.70) so it stays lively, not washed; ~7 s page-turn rolls the whole tiling over; time steps toward ~11 fps.",
+    "Heavy: reality break — the fold-tiled scene is remapped through a loud vivid cartoon palette (image-derived from the scene's own luminance, not a pasted overlay); the original photo is gone. Comparable in force to DMT breakthrough, in salvia's own re-tiling idiom. The kaleidoscope centre tracks the mouse."
   ],
   "sources": ["psychonautwiki:salvia-divinorum", "psychonautwiki:visual-effects", "kluver-1966", "bressloff-cowan-2001"]
 }
