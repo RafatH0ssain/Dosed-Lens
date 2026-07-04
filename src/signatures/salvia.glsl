@@ -97,32 +97,50 @@ vec3 sigColor(vec3 col, vec2 uv){
     col *= 1.0 - ink * wl * 0.45;
   }
 
-  /* ---- REALITY BREAK (Strong → Heavy): remap the already fold-tiled scene
-     through a vivid cartoon palette so it stays loud & lively instead of
-     washing out on dim scenes — image-driven (palette keyed to the scene's own
-     luminance), not a pasted overlay. Full takeover at Heavy. ---- */
-  float rb = uSig_realityBreak * smoothstep(0.70, 1.0, inten);
+  /* ---- REALITY BREAK (Strong → Heavy): the folded scene is not merely mirrored
+     — it is MELTED into a flowing geometric membrane. The membrane's SHAPE is
+     driven by the image's own luminance and its COLOURS are the room's own
+     dominant palette (uSeedCol), so the photo is *incorporated* and then
+     transmuted into somewhere else: soft cells split by glowing veins, liquid
+     and abstract, not a pasted overlay and not just the sharp photo tiled. ---- */
+  float rb = uSig_realityBreak * smoothstep(0.60, 1.0, inten);
   if (rb > 0.004) {
-    float y = luma(col);
-    /* palette phase = scene luminance + a mouse-centred radial/petal term, so
-       even a flat dark scene still gets dense concentric cartoon banding rather
-       than one uniform colour (the room-vs-brick washout fix) */
-    vec2 d = (uv - uMouse) * vec2(uAspect, 1.0);
+    vec2 asp = vec2(uAspect, 1.0);
+    vec2 d = (uv - uMouse) * asp;
     float rad = length(d);
-    float ang = atan(d.y, d.x);
-    /* fbm turbulence on the phase makes the bands wavy and abstract instead of
-       clean concentric rings — less "sharp", more dissolving-reality */
-    float turb = fbm(d * 3.0 + uTime * 0.10);
-    float phase = y * 1.3 + rad * 2.2 + 0.14 * sin(ang * 8.0 - uTime * 0.2)
-                + turb * 0.75 + uTime * 0.03;
-    vec3 vivid = pal(phase,
-                     vec3(0.55, 0.42, 0.48), vec3(0.55),
-                     vec3(1.00, 0.90, 0.65), vec3(0.10, 0.42, 0.72));
-    vec3 world = mix(vivid, col, 0.30);           /* keep a little scene hue */
-    world = floor(world * 5.0 + 0.5) / 5.0;        /* cartoon posterize */
+
+    /* dampen: soften the folded scene so it stops reading as a crisp photo */
+    vec2 px = 2.6 / uRes;
+    vec3 soft = col * 0.36
+      + texture(uScene, uv + vec2(px.x, 0.0)).rgb * 0.16
+      + texture(uScene, uv - vec2(px.x, 0.0)).rgb * 0.16
+      + texture(uScene, uv + vec2(0.0, px.y)).rgb * 0.16
+      + texture(uScene, uv - vec2(0.0, px.y)).rgb * 0.16;
+    float y = luma(soft);
+
+    /* emergent flowing field: its form grows out of the image's luminance, so
+       the new reality is shaped by the actual scene rather than stamped on it */
+    float flow  = fbm(d * 2.4 + y * 3.5 + uTime * 0.12);
+    float cells = fbm(d * 5.0 - flow * 2.0 + 7.0);
+    float veins = pow(abs(sin((cells * 3.0 + y * 5.0 + rad * 3.0) * PI)), 2.2);
+
+    /* membrane colour = the room's OWN dominant colours, re-sorted by the field
+       (recognisably this place, turned into another one) blended with a lively
+       generated palette so it stays loud, not washed */
+    vec3 ca = mix(uSeedCol[0].rgb, uSeedCol[2].rgb, smoothstep(0.15, 0.85, flow));
+    vec3 cb = mix(uSeedCol[1].rgb, uSeedCol[3].rgb, cells);
+    vec3 world = mix(ca, cb, smoothstep(0.30, 0.80, cells));
+    vec3 vivid = pal(cells * 1.5 + flow + uTime * 0.03,
+                     vec3(0.5), vec3(0.5), vec3(1.0, 0.9, 0.7), vec3(0.10, 0.40, 0.70));
+    world = mix(world, vivid, 0.4);
     float wy = luma(world);
-    world = clamp(mix(vec3(wy), world, 1.9), 0.0, 1.3);  /* loud saturation */
-    world = mix(world, vec3(0.88, 0.76, 0.24), 0.10);    /* faint salvia yellow */
+    world = clamp(mix(vec3(wy), world, 1.8), 0.0, 1.2);      /* loud saturation */
+    world += veins * vec3(1.0, 0.95, 0.8) * 0.35;             /* glowing veins */
+    world = mix(world, vec3(0.88, 0.76, 0.24), 0.08);         /* faint salvia yellow */
+    /* keep a luminous ghost of the softened room so it is incorporated, not
+       overlaid — bright where the scene is bright */
+    world *= 0.62 + soft * 1.15;
+
     col = mix(col, world, rb);
   }
   return col;

@@ -211,8 +211,8 @@ function frame(now: number): void {
   last = now;
   if (!state.paused) state.time += dt;
 
-  // ease the kaleidoscope centre toward the cursor (~0.7 s time constant)
-  const mk = 1 - Math.exp(-dt / 0.7);
+  // ease the kaleidoscope centre toward the cursor (slow ~1.6 s time constant)
+  const mk = 1 - Math.exp(-dt / 1.6);
   smoothMouse[0] += (state.mouse[0] - smoothMouse[0]) * mk;
   smoothMouse[1] += (state.mouse[1] - smoothMouse[1]) * mk;
 
