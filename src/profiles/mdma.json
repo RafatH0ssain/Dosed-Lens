@@ -13,7 +13,7 @@
     "scintilla":    {"curve": "smooth", "max": 0.50},
     "snow":         {"curve": "early",  "max": 0.15}
   },
-  "signatureParams": { "starRays": 0.8, "magenta": 0.7, "shimmer": 0.6, "nystagmus": 0.9 },
+  "signatureParams": { "starRays": 0.8, "magenta": 0.7, "shimmer": 0.6, "nystagmus": 0.9, "shadowFlicker": 0.3 },
   "tierNotes": [
     "Threshold: lights slightly juicier — halos a touch wider than the lens should give.",
     "Light: clear halos + magenta-leaning warmth.",

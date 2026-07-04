@@ -38,8 +38,12 @@ export function buildFragmentSource(
   ].join('\n');
 }
 
-export function createProgram(gl: WebGL2RenderingContext, fragSrc: string): ProgramBundle {
-  const vs = compile(gl, gl.VERTEX_SHADER, VERT);
+export function createProgram(
+  gl: WebGL2RenderingContext,
+  fragSrc: string,
+  vertSrc: string = VERT,
+): ProgramBundle {
+  const vs = compile(gl, gl.VERTEX_SHADER, vertSrc);
   const fs = compile(gl, gl.FRAGMENT_SHADER, fragSrc);
   const prog = gl.createProgram()!;
   gl.attachShader(prog, vs);

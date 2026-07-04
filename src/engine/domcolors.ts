@@ -5,6 +5,9 @@
 export interface ImageStats {
   colors: Float32Array; // 4 × RGBA
   bright: Float32Array; // uv of brightest region, y up
+  /** 24×24 luminance grid (0..1), row 0 = top — dark-region particle spawns */
+  lumGrid: Float32Array;
+  lumGridSize: number;
 }
 
 export function analyzeImage(img: TexImageSource & CanvasImageSource): ImageStats {
@@ -16,16 +19,18 @@ export function analyzeImage(img: TexImageSource & CanvasImageSource): ImageStat
   const px = g.getImageData(0, 0, N, N).data;
   let bi = 0;
   let bl = -1;
+  const lumGrid = new Float32Array(N * N);
   for (let p = 0; p < N * N; p++) {
     // 3×3 box luminance would be nicer; single texel is fine at 24×24
     const l = px[p * 4] * 0.2126 + px[p * 4 + 1] * 0.7152 + px[p * 4 + 2] * 0.0722;
+    lumGrid[p] = l / 255;
     if (l > bl) { bl = l; bi = p; }
   }
   const bright = new Float32Array([
     ((bi % N) + 0.5) / N,
     1 - (Math.floor(bi / N) + 0.5) / N, // GL uv, y up
   ]);
-  return { colors: dominantColors(img), bright };
+  return { colors: dominantColors(img), bright, lumGrid, lumGridSize: N };
 }
 
 export function dominantColors(img: TexImageSource & CanvasImageSource): Float32Array {

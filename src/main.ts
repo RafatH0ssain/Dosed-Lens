@@ -19,6 +19,7 @@ import { Graph, PassSource } from './gl/graph';
 import { Resolver, loadProfiles } from './engine/resolver';
 import { TIER_STOPS } from './engine/curves';
 import { analyzeImage } from './engine/domcolors';
+import { ParticleLayer, ParticleConfig } from './engine/particles';
 import { WebMRecorder, savePNG } from './engine/recorder';
 import { createPanel, setFPS } from './ui/panel';
 import { createCompare } from './ui/compare';
@@ -61,6 +62,9 @@ const graph = new Graph(ctx, PASSES, analysisFrag, common, flowFrag);
 const profiles = loadProfiles();
 const resolver = new Resolver();
 const recorder = new WebMRecorder();
+const particles = new ParticleLayer(ctx.gl);
+graph.overlay = (w, h, t) => particles.draw(w, h, t);
+const particleCfg: ParticleConfig = { shadow: 0, silhouette: 0, skitter: 0, smoke: 0, figure: 0 };
 
 const state = {
   substance: 'lsd',
@@ -125,6 +129,7 @@ function loadImageURL(url: string, done?: () => void): void {
     const stats = analyzeImage(img);
     graph.seedColors.set(stats.colors);
     graph.brightPos.set(stats.bright);
+    particles.setImageStats(stats);
     const m = url.match(/samples\/(.+)\.png/);
     panel.setActiveSample(m ? m[1] : null);
     done?.();
@@ -235,6 +240,16 @@ function frame(now: number): void {
     pd.entity = 0; pd.eyes = 0; pd.faces = 0; pd.jester = 0;
     pd.mandala = 0; pd.breakthrough = 0; pd.boost = 0;
   }
+
+  // particle layer config from signature params (meth / DPH / MDMA-heavy)
+  particleCfg.shadow = (sig.shadowEvents ?? 0) * smooth01((inten - 0.35) / 0.4)
+                     + (sig.shadowFlicker ?? 0) * smooth01((inten - 0.8) / 0.2);
+  particleCfg.silhouette = (sig.silhouette ?? 0) * smooth01((inten - 0.82) / 0.18);
+  particleCfg.skitter = (sig.skitter ?? 0) * smooth01((inten - 0.28) / 0.3);
+  particleCfg.smoke = (sig.smoke ?? 0) * smooth01((inten - 0.35) / 0.35);
+  particleCfg.figure = (sig.figureEvents ?? 0) * smooth01((inten - 0.8) / 0.2);
+  if (!state.paused) particles.update(dt, state.time, inten, state.mouse, particleCfg);
+
   graph.render(frameState);
 
   if (pngRequested) {

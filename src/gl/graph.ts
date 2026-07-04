@@ -105,6 +105,9 @@ export class Graph {
   seedColors = new Float32Array(16); // 4 × RGBA, set by setImage caller
   brightPos = new Float32Array([0.5, 0.5]); // set by setImage caller
 
+  /** drawn into the current target just before the post pass (particles) */
+  overlay: ((w: number, h: number, time: number) => void) | null = null;
+
   // null module so passes compile before the first setSignature call
   private signatureSrc = `
 vec2 sigWarp(vec2 uv){ return uv; }
@@ -319,8 +322,16 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     active.length = 0;
     for (const p of this.passes) if (!this.skip(p.def, f)) active.push(p);
     let cur = this.srcTex;
+    let curTarget: Target | null = null;
     for (let i = 0; i < active.length; i++) {
       const p = active[i];
+      // particles land on top of everything except post-processing
+      if (p.def.name === 'post' && this.overlay && curTarget) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, curTarget.fb);
+        gl.viewport(0, 0, curTarget.w, curTarget.h);
+        this.overlay(curTarget.w, curTarget.h, f.time);
+        gl.bindVertexArray(this.quad); // overlay uses its own VAO
+      }
       // the temporal pass writes the feedback history: uPrev is its own
       // previous output, kept pre-post so vignette/grain don't accumulate
       const isTemporal = p.def.name === 'temporal';
@@ -331,6 +342,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
       this.bindCommon(p.bundle, f, cur);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       cur = target.tex;
+      curTarget = target;
       if (!isTemporal) this.scenePing.swap();
     }
 
