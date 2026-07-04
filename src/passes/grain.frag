@@ -8,12 +8,24 @@ void main(){
   vec3 col = scene(vUv);
   float l = luma(col);
 
-  /* ---- visual snow (ported): fine dancing static + rare bright pops ---- */
+  /* ---- visual snow (VSS-accurate): sparse salt-and-pepper specks over the
+     whole field, not per-frame TV static. Each pixel reseeds on a quantized
+     ~14 Hz clock with a per-pixel phase offset, so the field *shimmers* at a
+     realistic rate decoupled from framerate instead of boiling every frame.
+     Distinct dark AND light specks with a transparent gap between (true
+     salt-and-pepper), at low opacity; density and opacity grow with intensity.
+     technique ref: Damiano & Gervasi 2025 VSS statistics ---- */
   if (uP_snow > 0.004) {
-    float n = hash12(gl_FragCoord.xy + fract(uTime)*vec2(419.0,157.0));
-    col += (n - 0.5) * uP_snow * 0.16;
-    float sp = step(0.9985 - uP_snow*0.0015, hash12(floor(gl_FragCoord.xy/1.5) + floor(uTime*24.0)));
-    col += sp * uP_snow * 0.6;
+    vec2 cell = floor(gl_FragCoord.xy);            /* 1 px grain */
+    float phase = hash12(cell) * 11.0;             /* desync the flicker */
+    float tq = floor(uTime * 14.0 + phase);        /* quantized reseed clock */
+    float h = hash12(cell + tq * vec2(37.1, 91.7));
+    float dens = uP_snow * uP_snow * 0.16;         /* fraction that pops (sparse) */
+    float op = 0.40 + 0.55 * uP_snow;              /* per-speck opacity */
+    float pepper = smoothstep(dens, 0.0, h);       /* h near 0 → dark speck */
+    float salt = smoothstep(1.0 - dens, 1.0, h);   /* h near 1 → light speck */
+    col = mix(col, vec3(0.02), pepper * op);
+    col = mix(col, vec3(0.96), salt * op * 0.85);
   }
 
   /* ---- scintilla: twinkles riding bright regions ---- */
