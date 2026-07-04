@@ -199,13 +199,47 @@ export class ParticleLayer {
     }
   }
 
+  /** local luminance contrast at (x,y): max |Δlum| to the 8 grid neighbours —
+      a cheap edge-density proxy from the analysis lumGrid */
+  private contrastAt(x: number, y: number): number {
+    const s = this.stats;
+    if (!s) return 0;
+    const n = s.lumGridSize;
+    const gx = Math.min(n - 1, Math.max(0, Math.floor(x * n)));
+    const gy = Math.min(n - 1, Math.max(0, Math.floor((1 - y) * n)));
+    const c = s.lumGrid[gy * n + gx];
+    let m = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = Math.min(n - 1, Math.max(0, gx + dx));
+        const ny = Math.min(n - 1, Math.max(0, gy + dy));
+        m = Math.max(m, Math.abs(s.lumGrid[ny * n + nx] - c));
+      }
+    }
+    return m;
+  }
+
+  /** best-of-N peripheral spot that is both dark AND high-contrast, so a meth
+      shadow blob emerges where the scene has a misreadable dark feature rather
+      than at a random screen position (the DeepDream / pareidolia principle) */
+  private darkEdgePos(p: P): void {
+    let bx = p.x, by = p.y, best = -1;
+    for (let i = 0; i < 10; i++) {
+      this.peripheralPos(p);
+      const dark = 1 - this.lumAt(p.x, p.y);
+      const score = dark * (0.3 + this.contrastAt(p.x, p.y));
+      if (score > best) { best = score; bx = p.x; by = p.y; }
+    }
+    p.x = bx; p.y = by;
+  }
+
   update(dt: number, time: number, intensity: number, mouse: readonly [number, number], cfg: ParticleConfig): void {
     // ---- spawning ----
     if (cfg.shadow > 0.01 && Math.random() < cfg.shadow * intensity * 2.2 * dt) {
       const p = this.spawn();
       if (p) {
         p.type = TYPE_SPECK; // shadow blob = big soft speck
-        this.peripheralPos(p);
+        this.darkEdgePos(p); // emerge from a dark, misreadable scene feature
         p.size = 30 + Math.random() * 50;
         p.alpha = 0.5;
         p.ttl = 0.2 + Math.random() * 0.2;
@@ -220,8 +254,13 @@ export class ParticleLayer {
       const p = this.spawn();
       if (p) {
         p.type = TYPE_SIL;
-        p.x = Math.random() < 0.5 ? 0.04 + Math.random() * 0.08 : 0.88 + Math.random() * 0.08;
-        p.y = 0.25 + Math.random() * 0.2;
+        // appear against whichever side edge is darker
+        const yy = 0.25 + Math.random() * 0.2;
+        const leftX = 0.04 + Math.random() * 0.08;
+        const rightX = 0.88 + Math.random() * 0.08;
+        const useLeft = this.lumAt(leftX, yy) <= this.lumAt(rightX, yy);
+        p.x = useLeft ? leftX : rightX;
+        p.y = yy;
         p.size = 40 + Math.random() * 25;
         p.alpha = 0.55;
         p.ttl = 0.3;
