@@ -11,13 +11,13 @@
     "desat":     {"curve": "late",   "max": 0.25},
     "vignette":  {"curve": "smooth", "max": 0.30}
   },
-  "signatureParams": { "stripShear": 0.9, "pageTurn": 0.8, "lateralPull": 0.85, "inkLines": 0.7 },
+  "signatureParams": { "stripShear": 0.9, "pageTurn": 0.8, "lateralPull": 0.85, "inkLines": 0.7, "realityBreak": 1.0 },
   "tierNotes": [
     "Threshold: faint lateral lean — the whole frame wants to go left (early sway).",
     "Light: shear bands barely visible at frame edges; 3 bands.",
     "Common: visible diagonal shear strips + constant sideways pull; band count growing.",
     "Strong: ~7 s page-turn events roll the bands over and re-tile with a duplicated strip; cartoon posterize + ink lines (late).",
-    "Heavy: frame fully tiled into repeating shearing copies, motion stepped to 12 fps."
+    "Heavy: reality break — the photo dissolves entirely into a tiled cartoon world of hard rectangular panels conveyor-belting sideways, a flat dark 'being' standing in each, motion stepped to 12 fps (realityBreak crossfade gated above Strong, full at Heavy). More scene-obliterating than DMT's tunnel, in salvia's own idiom."
   ],
   "sources": ["psychonautwiki:salvia-divinorum", "psychonautwiki:visual-effects"]
 }

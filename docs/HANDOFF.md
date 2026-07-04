@@ -126,6 +126,7 @@ Known calibration backlog from spot checks:
   isn't over-crisp.
 - Ketamine was already tuned once (acuity 0.6→0.35, desat/cool up) — verify doubling
   still reads at Common after any global changes.
+- Salvia Heavy tier is currently too weak compared to DMT. At Heavy (i=1.0), it must obliterate the     original image entirely and replace it with "fake reality" and figures. **Explicit override to M6       rules:** You have permission to modify Salvia's shader logic and JSON profile
 - Nitrous/whiteOut and MDMA doubleVision are `late`-curve — confirm they actually appear
   by Heavy (late = x³ is brutal below 0.75).
 - Commit: `tune: tier calibration sweep`. Update `tierNotes` where you changed behavior —
