@@ -103,7 +103,7 @@ vec3 sigColor(vec3 col, vec2 uv){
      dominant palette (uSeedCol), so the photo is *incorporated* and then
      transmuted into somewhere else: soft cells split by glowing veins, liquid
      and abstract, not a pasted overlay and not just the sharp photo tiled. ---- */
-  float rb = uSig_realityBreak * smoothstep(0.60, 1.0, inten);
+  float rb = uSig_realityBreak * smoothstep(0.30, 0.82, inten);
   if (rb > 0.004) {
     vec2 asp = vec2(uAspect, 1.0);
     vec2 d = (uv - uMouse) * asp;

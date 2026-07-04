@@ -210,7 +210,7 @@ void main(){
 
   /* tint the pattern toward the photo's local color so it inhabits surfaces */
   vec3 chroma = sc / max(luma(sc), 0.05);
-  pat = mix(pat, pat * chroma, 0.35);
+  pat = mix(pat, pat * chroma, 0.55);
 
   vec3 col = sc + pat * mask * 0.85;
 
@@ -267,8 +267,14 @@ void main(){
     col += eCol * uEntity;
   }
   if (uMandala > 0.001) {
-    /* bloom from the image's brightest region, luminance-masked */
-    col += mandala(p, t) * uMandala * (0.35 + 0.65*smoothstep(0.2, 0.7, l));
+    /* inhabit the surface rather than floating as a defined disc at the centre:
+       gate by texture energy + midtone luminance and wear the scene's own local
+       colour, so the chrysanthemum fluoresces out of the image and reads as one
+       thing with it instead of a pasted overlay */
+    vec3 mnd = mandala(p, t) * mix(vec3(1.0), chroma, 0.55);
+    float mmask = uMandala * mix(0.25, 1.0, texEnergy)
+                * (0.35 + 0.65 * smoothstep(0.2, 0.7, l));
+    col += mnd * mmask;
   }
 
   fragColor = vec4(col, 1.0);

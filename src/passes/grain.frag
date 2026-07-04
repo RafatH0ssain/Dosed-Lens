@@ -21,11 +21,16 @@ void main(){
     float tq = floor(uTime * 14.0 + phase);        /* quantized reseed clock */
     float h = hash12(cell + tq * vec2(37.1, 91.7));
     float dens = uP_snow * uP_snow * 0.16;         /* fraction that pops (sparse) */
-    float op = 0.40 + 0.55 * uP_snow;              /* per-speck opacity */
+    float op = 0.25 + 0.45 * uP_snow;              /* per-speck opacity */
     float pepper = smoothstep(dens, 0.0, h);       /* h near 0 → dark speck */
     float salt = smoothstep(1.0 - dens, 1.0, h);   /* h near 1 → light speck */
-    col = mix(col, vec3(0.02), pepper * op);
-    col = mix(col, vec3(0.96), salt * op * 0.85);
+    /* integrate with the scene: pepper darkens the underlying pixel and salt
+       lifts it (a small absolute floor keeps snow faintly visible on flat/dark
+       fields) — perturbing the image rather than stamping fixed black/white
+       dots that read as a pasted overlay */
+    col = mix(col, col * 0.15, pepper * op);
+    vec3 hi = clamp(col * 1.8 + 0.22, 0.0, 1.2);
+    col = mix(col, hi, salt * op * 0.9);
   }
 
   /* ---- scintilla: twinkles riding bright regions ---- */
