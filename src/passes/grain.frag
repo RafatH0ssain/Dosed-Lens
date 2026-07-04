@@ -20,8 +20,8 @@ void main(){
     float phase = hash12(cell) * 11.0;             /* desync the flicker */
     float tq = floor(uTime * 14.0 + phase);        /* quantized reseed clock */
     float h = hash12(cell + tq * vec2(37.1, 91.7));
-    float dens = uP_snow * uP_snow * 0.16;         /* fraction that pops (sparse) */
-    float op = 0.25 + 0.45 * uP_snow;              /* per-speck opacity */
+    float dens = uP_snow * uP_snow * 0.19;         /* fraction that pops (sparse) */
+    float op = 0.28 + 0.52 * uP_snow;              /* per-speck opacity */
     float pepper = smoothstep(dens, 0.0, h);       /* h near 0 → dark speck */
     float salt = smoothstep(1.0 - dens, 1.0, h);   /* h near 1 → light speck */
     /* integrate with the scene: pepper darkens the underlying pixel and salt

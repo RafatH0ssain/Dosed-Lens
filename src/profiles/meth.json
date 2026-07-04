@@ -4,15 +4,15 @@
   "class": "stimulant",
   "warning": "High-dose / sleep-deprived presentation. Uses peripheral flicker. Photosensitivity note applies.",
   "shared": {
-    "sharpenHalo": {"curve": "early",  "max": 0.85},
-    "desat":       {"curve": "smooth", "max": 0.40},
+    "sharpenHalo": {"curve": "early",  "max": 0.95},
+    "desat":       {"curve": "smooth", "max": 0.28},
     "coolCast":    {"curve": "smooth", "max": 0.35},
-    "snow":        {"curve": "early",  "max": 0.80},
-    "scintilla":   {"curve": "smooth", "max": 0.30},
-    "aberration":  {"curve": "early",  "max": 0.20},
-    "vignette":    {"curve": "late",   "max": 0.25}
+    "snow":        {"curve": "early",  "max": 0.85},
+    "scintilla":   {"curve": "smooth", "max": 0.48},
+    "aberration":  {"curve": "early",  "max": 0.38},
+    "vignette":    {"curve": "late",   "max": 0.10}
   },
-  "signatureParams": { "crawl": 0.8, "shadowEvents": 0.9, "silhouette": 0.7, "harshContrast": 0.8 },
+  "signatureParams": { "crawl": 0.85, "shadowEvents": 0.9, "silhouette": 0.7, "harshContrast": 1.0 },
   "tierNotes": [
     "Threshold: extra crispness — the over-sharpened vigilant look (early sharpenHalo); snow near-deniable (VSS density is quadratic in weight).",
     "Light: fine visual snow appears on flat surfaces — sparse salt-and-pepper specks shimmering at a fixed ~14 Hz, not per-frame static.",
