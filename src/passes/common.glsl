@@ -9,7 +9,9 @@ uniform sampler2D uScene;  /* previous pass output (entry pass: cover-fit src) *
 uniform sampler2D uSrc;    /* original uploaded image */
 uniform sampler2D uEdges;  /* P1: RG = Sobel dir, B = magnitude, A = luminance */
 uniform sampler2D uLum;    /* P1: luminance, blur pyramid in mips */
-uniform sampler2D uPrev;   /* previous final frame */
+uniform sampler2D uPrev;   /* previous temporal-pass output (feedback source) */
+uniform sampler2D uFlow;   /* low-res persistent melt accumulator (psilocybin) */
+uniform sampler2D uHist;   /* 4×4 atlas of quarter-res history frames */
 
 uniform vec2  uRes;        /* render target size in px */
 uniform float uAspect;     /* uRes.x / uRes.y */
@@ -20,6 +22,8 @@ uniform float uTier[5];    /* triangular weights over Threshold..Heavy stops */
 uniform vec2  uMouse;      /* 0..1, y up */
 uniform vec4  uFit;        /* cover-fit: uv*uFit.xy + uFit.zw → src uv */
 uniform vec4  uSeedCol[4]; /* 4 dominant image colors (analysis, M0 CPU-side) */
+uniform vec2  uBright;     /* uv of the image's brightest region */
+uniform float uHistHead;   /* newest history-ring slot (0..15) */
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
@@ -66,3 +70,11 @@ float lumAt(vec2 uv, float mip){ return textureLod(uLum, uv, mip).r; }
 
 /* rotate a 2D point */
 vec2 rot2(vec2 p, float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c)*p; }
+
+/* sample the history ring ~secondsBack ago (slots written every 2nd frame,
+   ≈30 slots/s; ring depth 16 → ~0.53 s reach) */
+vec3 histSample(vec2 uv, float secondsBack){
+  float slot = floor(mod(uHistHead - secondsBack*30.0 + 32.0, 16.0));
+  vec2 tile = vec2(mod(slot, 4.0), floor(slot / 4.0));
+  return texture(uHist, (clamp(uv, 0.001, 0.999) + tile) * 0.25).rgb;
+}

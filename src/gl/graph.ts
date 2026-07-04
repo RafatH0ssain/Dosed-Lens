@@ -32,6 +32,16 @@ export interface PassSource {
   gates: string[] | null;
 }
 
+export interface PatternDrive {
+  entity: number;
+  eyes: number;
+  faces: number;
+  jester: number;
+  mandala: number;
+  breakthrough: number;
+  boost: number;
+}
+
 export interface FrameState {
   time: number;
   dt: number;
@@ -42,6 +52,12 @@ export interface FrameState {
   mouse: readonly [number, number];
   /** 0 = off, else x position of before/after split (0..1) */
   split: number;
+  /** melt accumulator weight; > 0 runs the flow pass (psilocybin) */
+  flow: number;
+  /** truthy keeps the quarter-res history ring recording (nitrous) */
+  hist: number;
+  /** per-frame drive of P3's entity/mandala/breakthrough layer (DMT) */
+  pattern: PatternDrive;
 }
 
 const GATE_EPS = 0.004;
@@ -74,6 +90,12 @@ export class Graph {
   private prevPing: PingPong;
   private edgesT: Target;
   private lumT: Target;
+  private flowPing: PingPong;
+  private histT: Target;
+  private histCopy!: ProgramBundle;
+  private flowProg!: ProgramBundle;
+  private histHead = 0;
+  private histParity = 0;
 
   private srcTex: WebGLTexture | null = null;
   private imgW = 1;
@@ -81,6 +103,7 @@ export class Graph {
   private analysisDirty = true;
   private fit = new Float32Array([1, 1, 0, 0]);
   seedColors = new Float32Array(16); // 4 × RGBA, set by setImage caller
+  brightPos = new Float32Array([0.5, 0.5]); // set by setImage caller
 
   // null module so passes compile before the first setSignature call
   private signatureSrc = `
@@ -95,6 +118,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     private passSources: PassSource[],
     private analysisBody: string,
     private common: string,
+    flowBody: string,
   ) {
     const gl = (this.gl = ctx.gl);
     this.quad = createQuad(gl);
@@ -102,8 +126,17 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     this.prevPing = new PingPong(gl, ctx.width, ctx.height);
     this.edgesT = createTarget(gl, ctx.width, ctx.height);
     this.lumT = createTarget(gl, ctx.width, ctx.height, { mipmaps: true });
+    // melt accumulator: fixed low-res, screen-aligned UVs
+    this.flowPing = new PingPong(gl, 288, 180, ctx.floatFBO ? 'r16f' : 'rgba8');
+    // history ring: 4×4 atlas of quarter-res frames
+    this.histT = createTarget(gl, ctx.width, ctx.height);
     this.analysis = createProgram(gl, buildFragmentSource(analysisBody, { common }));
     this.present = createProgram(gl, buildFragmentSource(PRESENT_FRAG, { common }));
+    this.flowProg = createProgram(gl, buildFragmentSource(flowBody, { common }));
+    this.histCopy = createProgram(
+      gl,
+      buildFragmentSource('void main(){ fragColor = vec4(scene(vUv), 1.0); }', { common }),
+    );
     this.rebuildPasses();
 
     ctx.onResize((w, h) => {
@@ -111,8 +144,10 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
       this.prevPing.resize(w, h);
       destroyTarget(gl, this.edgesT);
       destroyTarget(gl, this.lumT);
+      destroyTarget(gl, this.histT);
       this.edgesT = createTarget(gl, w, h);
       this.lumT = createTarget(gl, w, h, { mipmaps: true });
+      this.histT = createTarget(gl, w, h);
       this.analysisDirty = true;
     });
   }
@@ -189,6 +224,12 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     gl.activeTexture(gl.TEXTURE4);
     gl.bindTexture(gl.TEXTURE_2D, this.prevPing.read.tex);
     gl.uniform1i(uni(gl, b, 'uPrev'), 4);
+    gl.activeTexture(gl.TEXTURE5);
+    gl.bindTexture(gl.TEXTURE_2D, this.flowPing.read.tex);
+    gl.uniform1i(uni(gl, b, 'uFlow'), 5);
+    gl.activeTexture(gl.TEXTURE6);
+    gl.bindTexture(gl.TEXTURE_2D, this.histT.tex);
+    gl.uniform1i(uni(gl, b, 'uHist'), 6);
 
     gl.uniform2f(uni(gl, b, 'uRes'), this.ctx.width, this.ctx.height);
     gl.uniform1f(uni(gl, b, 'uAspect'), this.ctx.width / this.ctx.height);
@@ -199,6 +240,24 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     gl.uniform2f(uni(gl, b, 'uMouse'), f.mouse[0], f.mouse[1]);
     gl.uniform4fv(uni(gl, b, 'uFit'), this.fit);
     gl.uniform4fv(uni(gl, b, 'uSeedCol'), this.seedColors);
+    gl.uniform2fv(uni(gl, b, 'uBright'), this.brightPos);
+    gl.uniform1f(uni(gl, b, 'uHistHead'), this.histHead);
+
+    // P3 entity/mandala/breakthrough drive — set unconditionally every frame
+    // so values can never go stale across substance switches
+    const pd = f.pattern;
+    const setIf = (name: string, v: number) => {
+      const loc = uni(gl, b, name);
+      if (loc) gl.uniform1f(loc, v);
+    };
+    setIf('uEntity', pd.entity);
+    setIf('uEyes', pd.eyes);
+    setIf('uFaces', pd.faces);
+    setIf('uJester', pd.jester);
+    setIf('uMandala', pd.mandala);
+    setIf('uBreakthrough', pd.breakthrough);
+    setIf('uPatternBoost', pd.boost);
+    setIf('uFlowRate', f.flow);
 
     for (const k in f.shared) {
       const loc = uni(gl, b, 'uP_' + k);
@@ -245,6 +304,17 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     this.computeFit();
     if (this.analysisDirty) this.runAnalysis(f);
 
+    // melt accumulator step (reads flowPing.read via uFlow, writes .write)
+    if (f.flow > 0.004) {
+      const ft = this.flowPing.write;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, ft.fb);
+      gl.viewport(0, 0, ft.w, ft.h);
+      gl.useProgram(this.flowProg.prog);
+      this.bindCommon(this.flowProg, f, this.srcTex);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      this.flowPing.swap();
+    }
+
     const active = this.activeScratch;
     active.length = 0;
     for (const p of this.passes) if (!this.skip(p.def, f)) active.push(p);
@@ -262,6 +332,21 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       cur = target.tex;
       if (!isTemporal) this.scenePing.swap();
+    }
+
+    // record the temporal output into the history ring (every 2nd frame)
+    if (f.hist > 0) {
+      this.histParity ^= 1;
+      if (this.histParity === 0) {
+        this.histHead = (this.histHead + 1) % 16;
+        const tw = Math.floor(this.ctx.width / 4);
+        const th = Math.floor(this.ctx.height / 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.histT.fb);
+        gl.viewport((this.histHead % 4) * tw, Math.floor(this.histHead / 4) * th, tw, th);
+        gl.useProgram(this.histCopy.prog);
+        this.bindCommon(this.histCopy, f, this.prevPing.write.tex);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+      }
     }
 
     // present to canvas

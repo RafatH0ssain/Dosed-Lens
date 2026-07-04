@@ -1,4 +1,32 @@
-/** Extract 4 dominant colors from an image (seeds DMT breakthrough palette). */
+/** Extract 4 dominant colors + brightest-region position from an image
+    (dominants seed the DMT breakthrough palette; brightest point anchors
+    psilocybin's water ripple). */
+
+export interface ImageStats {
+  colors: Float32Array; // 4 × RGBA
+  bright: Float32Array; // uv of brightest region, y up
+}
+
+export function analyzeImage(img: TexImageSource & CanvasImageSource): ImageStats {
+  const N = 24;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = N;
+  const g = cv.getContext('2d', { willReadFrequently: true })!;
+  g.drawImage(img, 0, 0, N, N);
+  const px = g.getImageData(0, 0, N, N).data;
+  let bi = 0;
+  let bl = -1;
+  for (let p = 0; p < N * N; p++) {
+    // 3×3 box luminance would be nicer; single texel is fine at 24×24
+    const l = px[p * 4] * 0.2126 + px[p * 4 + 1] * 0.7152 + px[p * 4 + 2] * 0.0722;
+    if (l > bl) { bl = l; bi = p; }
+  }
+  const bright = new Float32Array([
+    ((bi % N) + 0.5) / N,
+    1 - (Math.floor(bi / N) + 0.5) / N, // GL uv, y up
+  ]);
+  return { colors: dominantColors(img), bright };
+}
 
 export function dominantColors(img: TexImageSource & CanvasImageSource): Float32Array {
   const N = 24;

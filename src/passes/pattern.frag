@@ -8,7 +8,7 @@
    (DMT breakthrough, M4); they default to 0 elsewhere. */
 
 uniform float uP_patternMask, uP_symmetry;
-uniform float uEntity, uEyes, uFaces, uJester, uMandala, uPatternBoost;
+uniform float uEntity, uEyes, uFaces, uJester, uMandala, uPatternBoost, uBreakthrough;
 
 /* ---- ported: triple domain warp — the organic 'liquid' motion ---- */
 float field(vec2 p, float t, float warp, out vec2 q, out vec2 r){
@@ -157,7 +157,7 @@ vec3 mandala(vec2 p, float t){
 void main(){
   vec3 sc = scene(vUv);
   float w = uP_patternMask;
-  if (w < 0.004 && uEntity < 0.004 && uMandala < 0.004) {
+  if (w < 0.004 && uEntity < 0.004 && uMandala < 0.004 && uBreakthrough < 0.004) {
     fragColor = vec4(sc, 1.0);
     return;
   }
@@ -212,6 +212,23 @@ void main(){
   pat = mix(pat, pat * chroma, 0.35);
 
   vec3 col = sc + pat * mask * 0.85;
+
+  /* ---- DMT breakthrough: the scene is REPLACED by tunnel space, its
+     palette seeded from the photo's own dominant colors ---- */
+  if (uBreakthrough > 0.001) {
+    vec2 pk2 = kalei(p, 8.0 + 4.0*sin(t*0.05));
+    vec2 pt = tunnelMap(pk2, t*2.0) * 2.2;
+    vec2 q2, r2v;
+    float ft = field(pt*1.8, t*1.6, 0.9, q2, r2v);
+    vec3 pa = mix(vec3(0.50), uSeedCol[1].rgb, 0.55);
+    vec3 pc = mix(vec3(1.00, 0.90, 0.60), uSeedCol[0].rgb + 0.3, 0.5);
+    vec3 pdv = mix(vec3(0.00, 0.15, 0.42), uSeedCol[2].rgb, 0.5);
+    vec3 tcol = pal(ft*1.6 + length(pk2)*0.5 + t*0.06, pa, vec3(0.5), pc, pdv);
+    float tedge = pow(1.0 - abs(sin(ft*16.0 + t)), 5.0);
+    tcol += tedge * mix(vec3(1.0, 0.6, 1.2), uSeedCol[3].rgb * 2.0, 0.4);
+    tcol += mandala(p, t) * 1.2;
+    col = mix(col, tcol, uBreakthrough);
+  }
 
   /* ---- entity layer + mandala (driven by substance modules, e.g. DMT) ---- */
   if (uEntity > 0.001) {

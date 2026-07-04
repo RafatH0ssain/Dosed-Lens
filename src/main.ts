@@ -18,13 +18,14 @@ import { createContext, forceResize } from './gl/context';
 import { Graph, PassSource } from './gl/graph';
 import { Resolver, loadProfiles } from './engine/resolver';
 import { TIER_STOPS } from './engine/curves';
-import { dominantColors } from './engine/domcolors';
+import { analyzeImage } from './engine/domcolors';
 import { WebMRecorder, savePNG } from './engine/recorder';
 import { createPanel, setFPS } from './ui/panel';
 import { createCompare } from './ui/compare';
 
 import common from './passes/common.glsl?raw';
 import analysisFrag from './passes/analysis.frag?raw';
+import flowFrag from './passes/flow.frag?raw';
 import geometryFrag from './passes/geometry.frag?raw';
 import patternFrag from './passes/pattern.frag?raw';
 import colorFrag from './passes/color.frag?raw';
@@ -56,7 +57,7 @@ const PASSES: PassSource[] = [
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const ctx = createContext(canvas);
-const graph = new Graph(ctx, PASSES, analysisFrag, common);
+const graph = new Graph(ctx, PASSES, analysisFrag, common, flowFrag);
 const profiles = loadProfiles();
 const resolver = new Resolver();
 const recorder = new WebMRecorder();
@@ -72,6 +73,11 @@ const state = {
 
 function syncHash(): void {
   history.replaceState(null, '', `#s=${state.substance}&i=${state.intensity.toFixed(2)}`);
+}
+
+function smooth01(x: number): number {
+  const t = Math.min(1, Math.max(0, x));
+  return t * t * (3 - 2 * t);
 }
 
 const panel = createPanel(document.getElementById('app')!, profiles, {
@@ -116,7 +122,9 @@ function loadImageURL(url: string, done?: () => void): void {
   const img = new Image();
   img.onload = () => {
     graph.setImage(img, img.naturalWidth, img.naturalHeight);
-    graph.seedColors.set(dominantColors(img));
+    const stats = analyzeImage(img);
+    graph.seedColors.set(stats.colors);
+    graph.brightPos.set(stats.bright);
     const m = url.match(/samples\/(.+)\.png/);
     panel.setActiveSample(m ? m[1] : null);
     done?.();
@@ -167,6 +175,12 @@ let last = performance.now();
 let fpsFrames = 0;
 let fpsLast = performance.now();
 
+// displayed intensity follows the slider with a short attack; substances
+// with an `onsetRush` param (DMT) overshoot ×1.3 on upward moves — the rush
+let dispIntensity = state.intensity;
+let rushTarget = state.intensity;
+let rushPeak = 0; // remaining overshoot amplitude
+
 const frameState = {
   time: 0,
   dt: 0,
@@ -176,6 +190,9 @@ const frameState = {
   sig: resolver.sig,
   mouse: state.mouse,
   split: 0,
+  flow: 0,
+  hist: 0,
+  pattern: { entity: 0, eyes: 0, faces: 0, jester: 0, mandala: 0, breakthrough: 0, boost: 0 },
 };
 
 function frame(now: number): void {
@@ -184,11 +201,40 @@ function frame(now: number): void {
   last = now;
   if (!state.paused) state.time += dt;
 
-  resolver.resolve(state.intensity, state.time, state.paused ? 0 : dt);
+  // intensity dynamics
+  const sig = resolver.sig;
+  if (state.intensity !== rushTarget) {
+    if (sig.onsetRush && state.intensity > rushTarget) {
+      rushPeak = (state.intensity - rushTarget) * 0.3 * sig.onsetRush;
+    }
+    rushTarget = state.intensity;
+  }
+  const goal = Math.min(rushTarget + rushPeak, 1.15);
+  dispIntensity += (goal - dispIntensity) * Math.min(1, 4.5 * dt);
+  rushPeak *= Math.exp(-dt / 0.8); // overshoot settles over ~2 s
+  const inten = Math.min(dispIntensity, 1);
+
+  resolver.resolve(inten, state.time, state.paused ? 0 : dt);
   frameState.time = state.time;
   frameState.dt = state.paused ? 0 : dt;
-  frameState.intensity = state.intensity;
+  frameState.intensity = inten;
   frameState.split = state.split;
+
+  // substance-specific engine features, inferred from signature params
+  frameState.flow = sig.meltRate ? sig.meltRate * Math.min(inten * 2, 1) : 0;
+  frameState.hist = sig.flange ? 1 : 0;
+  const pd = frameState.pattern;
+  if (sig.breakthrough) {
+    // DMT: mandala from Common, full tunnel + entities at Heavy
+    pd.mandala = (sig.mandala ?? 0) * smooth01((inten - 0.35) / 0.4);
+    pd.breakthrough = sig.breakthrough * smooth01((inten - 0.78) / 0.22);
+    pd.entity = smooth01((inten - 0.8) / 0.2);
+    pd.eyes = 1; pd.faces = 1; pd.jester = 1;
+    pd.boost = 1;
+  } else {
+    pd.entity = 0; pd.eyes = 0; pd.faces = 0; pd.jester = 0;
+    pd.mandala = 0; pd.breakthrough = 0; pd.boost = 0;
+  }
   graph.render(frameState);
 
   if (pngRequested) {
