@@ -15,13 +15,24 @@
 
 vec2 sigWarp(vec2 uv){
   float inten = uIntensity;
-  /* stepped, lurching time — salvia is abrupt; steps in from Strong */
-  float stepAmt = smoothstep(0.55, 1.0, inten);
-  float t = mix(uTime, floor(uTime * 11.0) / 11.0, stepAmt);
+  /* gentle stepped time — a hint of salvia's abrupt quality without the choppy
+     lag the harsh 11 fps quantize gave at max (softer 18 fps, partial blend) */
+  float stepAmt = smoothstep(0.72, 1.0, inten) * 0.55;
+  float t = mix(uTime, floor(uTime * 18.0) / 18.0, stepAmt);
 
   vec2 asp = vec2(uAspect, 1.0);
   vec2 ctr = uMouse;                 /* kaleidoscope centre follows the cursor */
   vec2 p = (uv - ctr) * asp;
+
+  /* ---- organic domain warp BEFORE folding: the tiles flow and melt rather
+     than being a rigid mirror-rotation of the photo — this is what abstracts
+     the sharp kaleidoscope into something closer to DMT/LSD's richness ---- */
+  float warpAmt = smoothstep(0.30, 1.0, inten);
+  if (warpAmt > 0.001) {
+    vec2 w1 = vec2(fbm(p * 2.4 + t * 0.15),
+                   fbm(p * 2.4 + vec2(5.2, 1.3) - t * 0.12));
+    p += w1 * 0.30 * warpAmt;
+  }
 
   /* ---- lateral gravity as a log-polar shear: the field is dragged along a
      curving seam rather than a flat skew, plus a steady sideways creep ---- */
@@ -48,6 +59,14 @@ vec2 sigWarp(vec2 uv){
       f *= 1.20;                                     /* deeper zoom → more space */
       p = mix(p, f, w);
     }
+  }
+
+  /* ---- post-fold turbulence: break the hard mirror seams into wavy abstract
+     flow, so it never reads as a clean rotation of the source image ---- */
+  if (warpAmt > 0.001) {
+    vec2 w2 = vec2(fbm(p * 3.2 + 3.0 + t * 0.10),
+                   fbm(p * 3.2 + 8.0 - t * 0.08));
+    p += w2 * 0.16 * warpAmt;
   }
 
   /* ---- page-turn: every ~7 s the whole tiling rolls over ---- */
@@ -91,8 +110,11 @@ vec3 sigColor(vec3 col, vec2 uv){
     vec2 d = (uv - uMouse) * vec2(uAspect, 1.0);
     float rad = length(d);
     float ang = atan(d.y, d.x);
-    float phase = y * 1.4 + rad * 2.6 + 0.14 * sin(ang * 8.0 - uTime * 0.2)
-                + uTime * 0.03;
+    /* fbm turbulence on the phase makes the bands wavy and abstract instead of
+       clean concentric rings — less "sharp", more dissolving-reality */
+    float turb = fbm(d * 3.0 + uTime * 0.10);
+    float phase = y * 1.3 + rad * 2.2 + 0.14 * sin(ang * 8.0 - uTime * 0.2)
+                + turb * 0.75 + uTime * 0.03;
     vec3 vivid = pal(phase,
                      vec3(0.55, 0.42, 0.48), vec3(0.55),
                      vec3(1.00, 0.90, 0.65), vec3(0.10, 0.42, 0.72));

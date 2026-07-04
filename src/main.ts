@@ -186,6 +186,11 @@ let dispIntensity = state.intensity;
 let rushTarget = state.intensity;
 let rushPeak = 0; // remaining overshoot amplitude
 
+// eased pointer for the kaleidoscope centre: drifts behind the real cursor so
+// the fold singularity glides rather than snapping. Particles still use the raw
+// state.mouse (the gaze-proxy fade must react instantly).
+const smoothMouse: [number, number] = [0.5, 0.5];
+
 const frameState = {
   time: 0,
   dt: 0,
@@ -193,7 +198,7 @@ const frameState = {
   tier: resolver.tier,
   shared: resolver.shared,
   sig: resolver.sig,
-  mouse: state.mouse,
+  mouse: smoothMouse,
   split: 0,
   flow: 0,
   hist: 0,
@@ -205,6 +210,11 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
   if (!state.paused) state.time += dt;
+
+  // ease the kaleidoscope centre toward the cursor (~0.7 s time constant)
+  const mk = 1 - Math.exp(-dt / 0.7);
+  smoothMouse[0] += (state.mouse[0] - smoothMouse[0]) * mk;
+  smoothMouse[1] += (state.mouse[1] - smoothMouse[1]) * mk;
 
   // intensity dynamics
   const sig = resolver.sig;
