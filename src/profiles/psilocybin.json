@@ -4,18 +4,18 @@
   "class": "psychedelic",
   "warning": null,
   "shared": {
-    "breathing":   {"curve": "smooth", "max": 0.95},
-    "drift":       {"curve": "smooth", "max": 0.40},
+    "breathing":   {"curve": "smooth", "max": 1},
+    "drift":       {"curve": "smooth", "max": 0.75},
     "flowWarp":    {"curve": "smooth", "max": 0.80},
-    "tracers":     {"curve": "smooth", "max": 0.65},
+    "tracers":     {"curve": "smooth", "max": 0.75},
     "colorSat":    {"curve": "early",  "max": 0.60},
-    "hueDrift":    {"curve": "smooth", "max": 0.25},
-    "patternMask": {"curve": "late",   "max": 0.60},
-    "colorBleed":  {"curve": "late",   "max": 0.45},
-    "aberration":  {"curve": "smooth", "max": 0.30},
-    "bloom":       {"curve": "smooth", "max": 0.35}
+    "hueDrift":    {"curve": "smooth", "max": 0.35},
+    "patternMask": {"curve": "late",   "max": 0.40},
+    "colorBleed":  {"curve": "late",   "max": 0.95},
+    "aberration":  {"curve": "smooth", "max": 0.90},
+    "bloom":       {"curve": "smooth", "max": 0.95}
   },
-  "signatureParams": { "meltRate": 0.8, "rippleAmp": 0.6, "earthHue": 0.5, "organicGlow": 0.5 },
+  "signatureParams": { "meltRate": 0.8, "rippleAmp": 0.6, "earthHue": 0.7, "organicGlow": 0.5 },
   "tierNotes": [
     "Threshold: colors slightly deeper, especially greens and ambers (early colorSat only).",
     "Light: slow large-scale breathing begins; period noticeably longer than LSD's.",

@@ -6,8 +6,7 @@ import { createTierSlider } from './slider';
 import { createToggles, ToggleActions } from './toggles';
 
 const SAMPLES = [
-  '01-room-lamp', '02-brick-wall', '03-forest',
-  '04-street-night', '05-statue', '06-sky',
+  '01-room-lamp', '02-brick-wall', '03-forest', '05-statue', '06-sky',
 ];
 
 const ABOUT =

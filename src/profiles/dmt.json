@@ -4,17 +4,17 @@
   "class": "psychedelic",
   "warning": "Uses rapid flicker/shimmer. Photosensitivity note applies.",
   "shared": {
-    "breathing":   {"curve": "early",  "max": 0.45},
-    "flowWarp":    {"curve": "smooth", "max": 0.55},
-    "tracers":     {"curve": "early",  "max": 0.50},
-    "colorSat":    {"curve": "early",  "max": 1.00},
+    "breathing":   {"curve": "early",  "max": 0.95},
+    "flowWarp":    {"curve": "smooth", "max": 0.95},
+    "tracers":     {"curve": "early",  "max": 0.90},
+    "colorSat":    {"curve": "early",  "max": 2.00},
     "hueDrift":    {"curve": "smooth", "max": 0.70},
     "patternMask": {"curve": "smooth", "max": 0.95},
     "symmetry":    {"curve": "late",   "max": 0.90},
     "snow":        {"curve": "early",  "max": 0.25},
-    "scintilla":   {"curve": "smooth", "max": 0.45},
-    "aberration":  {"curve": "smooth", "max": 0.60},
-    "bloom":       {"curve": "smooth", "max": 0.50}
+    "scintilla":   {"curve": "smooth", "max": 0.05},
+    "aberration":  {"curve": "smooth", "max": 0.90},
+    "bloom":       {"curve": "smooth", "max": 0.90}
   },
   "signatureParams": { "shimmer": 0.9, "neonQuant": 0.8, "mandala": 0.9, "breakthrough": 1.0, "onsetRush": 1.0 },
   "tierNotes": [

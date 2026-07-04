@@ -4,9 +4,9 @@
   "class": "depressant",
   "warning": null,
   "shared": {
-    "doubleVision": {"curve": "smooth", "max": 0.80},
-    "sway":         {"curve": "smooth", "max": 0.70},
-    "ghosting":     {"curve": "smooth", "max": 0.60},
+    "doubleVision": {"curve": "smooth", "max": 0.30},
+    "sway":         {"curve": "smooth", "max": 0.30},
+    "ghosting":     {"curve": "smooth", "max": 0.50},
     "warmCast":     {"curve": "early",  "max": 0.45},
     "vignette":     {"curve": "smooth", "max": 0.60},
     "acuity":       {"curve": "smooth", "max": 0.50},
