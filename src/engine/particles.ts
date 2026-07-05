@@ -108,10 +108,27 @@ void main(){
     a = smoothstep(1.05, 0.05, dWarp) * smoothstep(-0.30, 0.60, n) * 0.34;
     col = vec3(0.42, 0.42, 0.44);
   } else {
-    /* humanoid silhouette: head circle + body capsule, heavy soft edge */
+    /* humanoid silhouette: head circle + body capsule, heavy soft edge.
+       Three variants picked per-particle from vSeed ("different types of
+       figures" per user feedback) instead of always the same standing
+       pose — standing straight, hunched forward, and a lower crouch. */
     vec2 q = vLuv * vec2(1.0, 2.6); /* undo quad stretch → SDF space */
-    float head = length((q - vec2(0.0, -1.55)) * vec2(1.6, 1.6)) - 0.55;
-    vec2 bq = q; bq.y = max(abs(bq.y + 0.35) - 1.15, 0.0);
+    float variant = mod(vSeed, 3.0);
+    vec2 headOff = vec2(0.0, -1.55);
+    float bodyLen = 1.15;
+    float headR = 0.55;
+    if (variant >= 1.0 && variant < 2.0) {
+      /* hunched forward */
+      headOff = vec2(0.30, -1.32);
+      bodyLen = 0.95;
+    } else if (variant >= 2.0) {
+      /* low crouch */
+      headOff = vec2(0.0, -1.05);
+      bodyLen = 0.62;
+      headR = 0.50;
+    }
+    float head = length((q - headOff) * vec2(1.6, 1.6)) - headR;
+    vec2 bq = q; bq.y = max(abs(bq.y + 0.35) - bodyLen, 0.0);
     float body = length(vec2(bq.x * 1.9, bq.y)) - 0.62;
     float sdf = min(head, body);
     a = smoothstep(0.30, -0.15, sdf) * 0.8;
@@ -239,7 +256,7 @@ export class ParticleLayer {
 
   update(dt: number, time: number, intensity: number, mouse: readonly [number, number], cfg: ParticleConfig): void {
     // ---- spawning ----
-    if (cfg.shadow > 0.01 && Math.random() < cfg.shadow * intensity * 2.2 * dt) {
+    if (cfg.shadow > 0.01 && Math.random() < cfg.shadow * intensity * 2.6 * dt) {
       const p = this.spawn();
       if (p) {
         p.type = TYPE_SPECK; // shadow blob = big soft speck
@@ -253,8 +270,9 @@ export class ParticleLayer {
         p.vy = Math.sin(a) * v;
       }
     }
-    // rare humanoid silhouettes, p ≈ 0.025/s at full weight
-    if (cfg.silhouette > 0.01 && Math.random() < 0.025 * cfg.silhouette * dt) {
+    // rare humanoid silhouettes, p ≈ 0.032/s at full weight (nudged up
+    // slightly per user feedback: "slightly more shadows")
+    if (cfg.silhouette > 0.01 && Math.random() < 0.032 * cfg.silhouette * dt) {
       const p = this.spawn();
       if (p) {
         p.type = TYPE_SIL;
