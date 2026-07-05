@@ -39,14 +39,18 @@ vec3 kFlat(vec2 uv){
 }
 
 /* a much wider average than kFlat — approximates the flat, averaged
-   colour of a whole "panel" rather than a light photographic soften */
+   colour of a whole "panel" rather than a light photographic soften.
+   9 taps (centre + 8-direction ring) rather than 4 corners: a sparse
+   4-tap "blur" aliases against fine texture (brick) as the sample UV
+   drifts even slowly, which is what read as "jittery/vibrating" — more
+   taps make this a true stable average instead. */
 vec3 kFlatWide(vec2 uv, float r){
   vec2 px = r / uRes;
   vec3 acc = texture(uScene, uv).rgb * 0.2;
-  acc += texture(uScene, uv + vec2( px.x,  px.y)).rgb * 0.2;
-  acc += texture(uScene, uv + vec2(-px.x,  px.y)).rgb * 0.2;
-  acc += texture(uScene, uv + vec2( px.x, -px.y)).rgb * 0.2;
-  acc += texture(uScene, uv + vec2(-px.x, -px.y)).rgb * 0.2;
+  for (int i = 0; i < 8; i++) {
+    float a = float(i) * 0.7853982;
+    acc += texture(uScene, uv + vec2(cos(a), sin(a)) * px).rgb * 0.1;
+  }
   return acc;
 }
 
@@ -81,14 +85,18 @@ vec3 kCubism(vec2 uv, float voff, float w){
     else if (dist < d1) { d1 = dist; i1 = fi; seed1 = seed; }
   }
 
+  /* breathing slowed further and its contribution to zoom/offset cut —
+     the continuous sub-pixel drift it caused in the facet sample was
+     part of what read as "jittery/vibrating" (the wider kFlatWide above
+     addresses the rest) */
   float ph0 = hash1(i0 * 9.1 + 2.0) * TAU;
   float ph1 = hash1(i1 * 9.1 + 2.0) * TAU;
-  float br0 = 0.5 + 0.5 * sin(uTime * 0.22 + ph0);
-  float br1 = 0.5 + 0.5 * sin(uTime * 0.22 + ph1);
-  vec2 off0 = (hash2(vec2(i0, 1.0)) - 0.5) * (0.012 + 0.020 * br0) * w;
-  vec2 off1 = (hash2(vec2(i1, 1.0)) - 0.5) * (0.012 + 0.020 * br1) * w;
-  float z0 = 1.0 + ((hash1(i0 * 2.0) - 0.5) * 0.05 + (br0 - 0.5) * 0.05) * w;
-  float z1 = 1.0 + ((hash1(i1 * 2.0) - 0.5) * 0.05 + (br1 - 0.5) * 0.05) * w;
+  float br0 = 0.5 + 0.5 * sin(uTime * 0.12 + ph0);
+  float br1 = 0.5 + 0.5 * sin(uTime * 0.12 + ph1);
+  vec2 off0 = (hash2(vec2(i0, 1.0)) - 0.5) * (0.012 + 0.012 * br0) * w;
+  vec2 off1 = (hash2(vec2(i1, 1.0)) - 0.5) * (0.012 + 0.012 * br1) * w;
+  float z0 = 1.0 + ((hash1(i0 * 2.0) - 0.5) * 0.05 + (br0 - 0.5) * 0.025) * w;
+  float z1 = 1.0 + ((hash1(i1 * 2.0) - 0.5) * 0.05 + (br1 - 0.5) * 0.025) * w;
 
   vec2 fuv0 = clamp((uv - 0.5) * z0 + 0.5 + off0, 0.0, 1.0);
   vec2 fuv1 = clamp((uv - 0.5) * z1 + 0.5 + off1, 0.0, 1.0);
@@ -145,8 +153,8 @@ vec3 sigColor(vec3 col, vec2 uv){
   float inside = smoothstep(1.06, 0.90, superell);
   vec2 suv = clamp(ruv, 0.0, 1.0);
 
-  /* ---- vertical-divergence double vision ---- */
-  float voff = uSig_verticalDouble * (0.005 + 0.044 * smoothstep(0.12, 0.85, inten));
+  /* ---- vertical-divergence double vision (reduced a bit per feedback) ---- */
+  float voff = uSig_verticalDouble * (0.005 + 0.032 * smoothstep(0.12, 0.85, inten));
   vec3 scn = 0.5 * (texture(uScene, suv).rgb
                   + texture(uScene, clamp(suv + vec2(0.0, voff), 0.0, 1.0)).rgb);
 
