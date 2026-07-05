@@ -11,7 +11,8 @@
     "tracers":      {"curve": "early",  "max": 0.20},
     "snow":         {"curve": "early",  "max": 0.25},
     "warmCast":     {"curve": "early",  "max": 0.20},
-    "doubleVision": {"curve": "late",   "max": 0.40}
+    "doubleVision": {"curve": "late",   "max": 0.40},
+    "patternMask":  {"curve": "late",   "max": 0.55}
   },
   "signatureParams": { "sepiaGreen": 0.7, "blurWave": 0.8, "skitter": 0.9, "smoke": 0.7, "pareidolia": 0.8, "figureEvents": 0.8, "drift": 0.8, "heavyBreathe": 0.85 },
   "tierNotes": [
@@ -19,7 +20,7 @@
     "Light: first dark specks in the corners of the frame; the faintest realistic drift on structure, barely there.",
     "Common: skitter clusters in periphery/dark regions + smoke wisps drifting; blur waves begin; drift/jitter on edges is now visible if you look for it — the room feels subtly, unnamably wrong rather than static.",
     "Strong: shadow faces fading in from the darkest regions, dissolving on approach; heavy blur waves; double vision begins (late curve); drift is unmistakable but stays realistic, never geometric.",
-    "Heavy: 'someone standing there' figure events, near-monochrome sickly cast, constant peripheral motion, constant double vision; a stronger, slower whole-room breathing pattern warp wakes up on top of the base drift (user feedback: wanted a little psychedelic-like quality at Heavy) — still entirely colorless/pattern-only, no saturation or rainbow added, staying true to the deliriant identity."
+    "Heavy: 'someone standing there' figure events, near-monochrome sickly cast, constant peripheral motion, constant double vision; a stronger, slower whole-room breathing pattern warp on top of the base drift, PLUS a genuine organic form-constant pattern riding the image's own texture (patternMask, late curve) — reuses the shared P3 pattern pass, which runs before the desaturation step, so the pattern itself arrives already muted/near-monochrome rather than colorful. User feedback wanted more psychedelic-like patterning at Heavy while staying true to the deliriant identity (no rainbow)."
   ],
   "sources": ["psychonautwiki:diphenhydramine", "psychonautwiki:deliriant", "psychonautwiki:visual-effects"]
 }
