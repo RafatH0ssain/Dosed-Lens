@@ -26,15 +26,20 @@ vec2 sigWarp(vec2 uv){
 }
 
 vec3 sigColor(vec3 col, vec2 uv){
-  /* HD unsharp halo from the luminance pyramid (high mip − low mip) */
+  /* HD unsharp halo from the luminance pyramid (high mip − low mip) —
+     feedback: Heavy needed to be much stronger, so both the clamp range
+     and its intensity ramp are wider now */
   float hd = lumAt(uv, 1.0) - lumAt(uv, 4.0);
-  col += clamp(vec3(hd), -0.28, 0.28) * uSig_hdSharpen * (0.35 + 0.65*uIntensity);
+  col += clamp(vec3(hd), -0.36, 0.36) * uSig_hdSharpen * (0.30 + 0.85*uIntensity);
   /* saturation bite on top of the shared push */
   float l = luma(col);
-  col = mix(vec3(l), col, 1.0 + 0.25*uSig_hdSharpen*uIntensity);
+  col = mix(vec3(l), col, 1.0 + 0.40*uSig_hdSharpen*uIntensity);
 
-  /* fractal tiling — Heavy only: the repeating-texture effect */
-  float heavy = smoothstep(0.72, 1.0, uIntensity) * uSig_fractalTile;
+  /* fractal tiling — wakes up earlier (was Heavy-only, 0.72) and covers far
+     more of the frame at full strength (blend ceiling 0.65 -> 0.90): the
+     repeating-texture effect used to top out well short of dominating the
+     photo even at max intensity */
+  float heavy = smoothstep(0.58, 0.95, uIntensity) * uSig_fractalTile;
   if (heavy > 0.004) {
     vec2 asp = vec2(uAspect, 1.0);
     vec2 ctr = uMouse;                 /* fractal-tiling centre follows the cursor */
@@ -44,7 +49,7 @@ vec3 sigColor(vec3 col, vec2 uv){
     vec3 c1 = texture(uScene, clamp(k1, 0.0, 1.0)).rgb;
     vec3 c2 = texture(uScene, clamp(k2, 0.0, 1.0)).rgb;
     float texE = smoothstep(0.015, 0.10, abs(lumAt(uv, 2.0) - lumAt(uv, 5.0)));
-    col = mix(col, (c1 + c2) * 0.5, heavy * texE * 0.65);
+    col = mix(col, (c1 + c2) * 0.5, heavy * texE * 0.90);
   }
   return col;
 }

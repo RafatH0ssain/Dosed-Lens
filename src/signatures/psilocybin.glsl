@@ -12,7 +12,10 @@ vec2 sigWarp(vec2 uv){
   /* melt: sample above → content appears slumped downward */
   float m = texture(uFlow, uv).r;
   float w = smoothstep(0.28, 1.0, uIntensity);
-  uv.y += m * w * uSig_meltRate * 0.045;
+  /* extra Heavy-only kick — feedback that Heavy wasn't strong enough;
+     the base accumulator amplitude alone topped out too gently */
+  float heavyKick = smoothstep(0.7, 1.0, uIntensity);
+  uv.y += m * w * uSig_meltRate * (0.045 + 0.045 * heavyKick);
 
   /* water ripple from the brightest region */
   float rw = uSig_rippleAmp * smoothstep(0.4, 0.9, uIntensity);

@@ -245,9 +245,17 @@ vec3 sigColor(vec3 col, vec2 uv){
   float inten = uIntensity;
 
   /* ---- world recession: sample a shrunk scene, dark around it ----
-     onset pushed back per feedback ("starting off way too strong") —
-     recession now waits until Common instead of waking up right at it */
-  float rec = uSig_recession * smoothstep(0.45, 1.0, inten) * 0.58;
+     feedback: the k-hole should be SUDDEN — a small black margin through
+     Strong that only rapidly grows into the full k-hole right at the very
+     end of the slider, not a smooth ramp across the whole Strong->Heavy
+     range (which made Strong feel dominated by black instead of reading
+     as its own "psychedelic vibe" tier). Two-part curve: a shallow base
+     that's already at its own (small) ceiling by Strong, plus a steep
+     spike confined to the last ~15% of the slider that adds the rest —
+     same total magnitude at Heavy (0.15 + 0.43 = 0.58) as before. */
+  float recBase = uSig_recession * smoothstep(0.45, 0.85, inten) * 0.15;
+  float recSpike = uSig_recession * smoothstep(0.85, 1.0, inten) * 0.43;
+  float rec = recBase + recSpike;
   vec2 ruv = (uv - 0.5) / max(1.0 - rec, 1e-3) + 0.5;
   /* boundary — user feedback: the old superellipse mask had too tight a
      feather (a ~0.16-wide band) and stayed a static rounded rectangle; it
@@ -277,7 +285,7 @@ vec3 sigColor(vec3 col, vec2 uv){
      intensity `inside` is 1.0 everywhere (full rectangular frame, nothing
      cropped) and the circular boundary only appears once recession is
      actually shrinking the world. */
-  float boundaryW = smoothstep(0.42, 0.85, inten);
+  float boundaryW = smoothstep(0.42, 0.80, inten);
   float inside = mix(1.0, smoothstep(1.20, 0.45, edgeR), boundaryW);
   vec2 suv = clamp(ruv, 0.0, 1.0);
 
@@ -288,10 +296,10 @@ vec3 sigColor(vec3 col, vec2 uv){
      glow, a wall's outline) fully intact — the luminance/shape layout needs
      to move too for the picture to actually stop being discernible, not
      just recolour discernibly. Amplitude breathes on a slow LFO so it
-     reads as swelling/pulsing rather than a jump-cut. Onset pushed to
-     Strong (was Common) — this stage plus everything below it was firing
-     far too early and stacking into an overwhelming Light/Common render. */
-  float dissW0 = uSig_dissolve * smoothstep(0.68, 0.97, inten);
+     reads as swelling/pulsing rather than a jump-cut. Onset pulled earlier
+     into Strong (feedback: Strong needed much more psychedelic-esque
+     presence of its own, not just a preview of Heavy). */
+  float dissW0 = uSig_dissolve * smoothstep(0.55, 0.90, inten);
   if (dissW0 > 0.004) {
     float t = uTime * 0.075;
     vec2 n = vec2(fbm(suv * 2.1 + t), fbm(suv * 2.1 - t + 9.0));
@@ -330,13 +338,12 @@ vec3 sigColor(vec3 col, vec2 uv){
     scn = mix(scn, vec3(0.5) + (scn - vec3(0.5)) * 0.62, flatW * 0.65);
   }
 
-  /* ---- environmental cubism / scenery slicing — onset pulled back to
-     Common (was upper-Threshold, another big contributor to "too strong
-     early"), but the ceiling is raised so Strong/Heavy read as a genuine
-     reality-change instead of a light dusting: by Heavy this reaches full
-     weight and kCubism's own photo/flat ratio (below) is pushed further
-     toward flat, so the facet reconstruction dominates rather than tints. */
-  float cubW = uSig_cubism * smoothstep(0.48, 0.92, inten);
+  /* ---- environmental cubism / scenery slicing — feedback: Strong needs
+     "much more psychedelic-esque effects" and shouldn't rely on the black
+     k-hole (now deliberately minimal at Strong, see recession above) to
+     carry that — onset pulled earlier and the ramp is faster so cubism
+     itself, not the black surround, is what makes Strong feel altered. */
+  float cubW = uSig_cubism * smoothstep(0.40, 0.80, inten);
   if (cubW > 0.004) {
     vec3 cub = kCubism(suv, voff, cubW);
     scn = mix(scn, cub, cubW);
@@ -345,15 +352,20 @@ vec3 sigColor(vec3 col, vec2 uv){
   /* ---- Heavy dissolve: the (now-cubist) painting gives way to a
      continuous, structure-driven breathing pattern — see kDissolve's
      header note for why this replaced the old per-facet kShimmer.
-     Reaches full strength slightly earlier (0.78 instead of 0.80) since
-     the source photo was still clearly recognisable at Heavy. ---- */
-  float dissolveW = uSig_dissolve * smoothstep(0.78, 1.0, inten);
+     Onset pulled into Strong (was 0.78) so the pattern itself — flat,
+     posterized, breathing, but never the black k-hole — is what makes
+     Strong read as psychedelic; still reaches full strength by Heavy. ---- */
+  float dissolveW = uSig_dissolve * smoothstep(0.62, 0.94, inten);
   if (dissolveW > 0.004) {
     scn = mix(scn, kDissolve(suv, scn, dissolveW), dissolveW);
   }
 
   /* ---- dark cold surround; k-hole deepens it toward black ---- */
-  float hole = uSig_kholeTunnel * smoothstep(0.68, 1.0, inten);
+  /* same sudden two-part shape as recession above — Strong stays mildly
+     dim, Heavy alone gets the near-black k-hole surround */
+  float holeBase = uSig_kholeTunnel * smoothstep(0.45, 0.85, inten) * 0.30;
+  float holeSpike = uSig_kholeTunnel * smoothstep(0.85, 1.0, inten) * 0.65;
+  float hole = holeBase + holeSpike;
   vec3 surround = vec3(0.030, 0.034, 0.048) * (1.0 - hole * 0.95);
   return mix(surround, scn, inside);
 }
