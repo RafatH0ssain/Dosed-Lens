@@ -10,8 +10,11 @@
    shared P2 doubleVision param rather than inventing a second mechanism;
    (2) hypnagogic dream imagery at the deepest point of a Heavy nod — PW:
    "one may experience feelings of hypnagogia during a state of 'nodding'
-   which is often accompanied by vivid dream-like visions."
-   Params: nodDepth, nodRate, goldenCast, pinhole, dreamImagery
+   which is often accompanied by vivid dream-like visions." (3) a slow,
+   dreamy breathe/sway on the image's own structure and on the pinhole
+   boundary itself at higher doses (user feedback) — gentle and languid,
+   matching the warm nod identity rather than a nervous jitter.
+   Params: nodDepth, nodRate, goldenCast, pinhole, dreamImagery, sway
    sources: psychonautwiki:opioids */
 
 float nodPeriod(){ return mix(42.0, 9.0, smoothstep(0.1, 1.0, uIntensity) * uSig_nodRate); }
@@ -56,6 +59,17 @@ vec3 opioidDream(vec2 uv, float seed){
 vec2 sigWarp(vec2 uv){
   /* the frame sinks ~2% while nodding */
   uv.y += nodPhase() * 0.02;
+
+  /* slow, dreamy breathe/sway on the image's own structure at higher
+     doses — languid, not nervous, matching the warm nod identity */
+  float bw = uSig_sway * smoothstep(0.45, 1.0, uIntensity);
+  if (bw > 0.004) {
+    vec2 tang = edgeTangent(uv);
+    float mag = edgeAt(uv).z;
+    float breathe = sin(uTime * 0.35) * 0.5 + 0.5 * sin(uTime * 0.21 + 1.7);
+    uv += tang * mag * breathe * bw * 0.009;
+    uv.x += sin(uTime * 0.18) * 0.0045 * bw;
+  }
   return uv;
 }
 
@@ -66,10 +80,15 @@ vec3 sigColor(vec3 col, vec2 uv){
   /* golden-hour cast */
   col *= mix(vec3(1.0), vec3(1.10, 1.00, 0.80), uSig_goldenCast * w * 0.7);
 
-  /* pinhole vignette: ~80% of frame at Light → ~55% at Heavy */
+  /* pinhole vignette: ~80% of frame at Light → ~55% at Heavy; the
+     boundary itself gently breathes/sways at higher doses rather than
+     sitting perfectly rigid */
+  float swayAmt = uSig_sway * smoothstep(0.45, 1.0, uIntensity);
   vec2 c = (uv - 0.5) * vec2(uAspect, 1.0);
+  c += vec2(sin(uTime * 0.23) * 0.03, cos(uTime * 0.17) * 0.02) * swayAmt;
   float r = length(c);
-  float aperture = mix(0.85, 0.48, smoothstep(0.1, 1.0, uIntensity) * uSig_pinhole);
+  float aperture = mix(0.85, 0.48, smoothstep(0.1, 1.0, uIntensity) * uSig_pinhole)
+                 * (1.0 + sin(uTime * 0.30) * 0.05 * swayAmt);
   col *= 1.0 - smoothstep(aperture * 0.55, aperture, r) * 0.9;
 
   /* nod: upper-lid gradient descends + blur + darkening */
