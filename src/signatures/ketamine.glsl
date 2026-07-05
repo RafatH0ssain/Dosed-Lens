@@ -296,10 +296,11 @@ vec3 sigColor(vec3 col, vec2 uv){
      glow, a wall's outline) fully intact — the luminance/shape layout needs
      to move too for the picture to actually stop being discernible, not
      just recolour discernibly. Amplitude breathes on a slow LFO so it
-     reads as swelling/pulsing rather than a jump-cut. Onset pulled earlier
-     into Strong (feedback: Strong needed much more psychedelic-esque
-     presence of its own, not just a preview of Heavy). */
-  float dissW0 = uSig_dissolve * smoothstep(0.55, 0.90, inten);
+     reads as swelling/pulsing rather than a jump-cut. Onset pulled all the
+     way into Common now (feedback: "common and strong should have some of
+     the colorful aspects, but heavy should be the k-hole") — modest here,
+     well underway by Strong, full by Heavy. */
+  float dissW0 = uSig_dissolve * smoothstep(0.32, 0.85, inten);
   if (dissW0 > 0.004) {
     float t = uTime * 0.075;
     vec2 n = vec2(fbm(suv * 2.1 + t), fbm(suv * 2.1 - t + 9.0));
@@ -322,9 +323,11 @@ vec3 sigColor(vec3 col, vec2 uv){
                   + texture(uScene, clamp(suv + vec2(0.0, voff), 0.0, 1.0)).rgb);
 
   /* ---- painting flattening: smooth the weak-edge regions — onset pushed
-     back (was starting at Threshold's edge and ~70% strength by Common,
-     which is a lot of the "too strong early" complaint) ---- */
-  float flatW = uSig_flatten * smoothstep(0.30, 0.88, inten);
+     back further per feedback ("reduce ketamine blur in common dose"):
+     was already at ~26% blend by Common, which combined with the shared
+     acuity/dof blur (see profile) read as too soft. Now negligible at
+     Common, arriving properly in Strong instead. ---- */
+  float flatW = uSig_flatten * smoothstep(0.45, 0.90, inten);
   if (flatW > 0.004) {
     float em = edgeAt(suv).z;
     /* hard edges (mortar lines, object outlines) used to stay fully crisp
@@ -349,13 +352,14 @@ vec3 sigColor(vec3 col, vec2 uv){
     scn = mix(scn, cub, cubW);
   }
 
-  /* ---- Heavy dissolve: the (now-cubist) painting gives way to a
-     continuous, structure-driven breathing pattern — see kDissolve's
-     header note for why this replaced the old per-facet kShimmer.
-     Onset pulled into Strong (was 0.78) so the pattern itself — flat,
-     posterized, breathing, but never the black k-hole — is what makes
-     Strong read as psychedelic; still reaches full strength by Heavy. ---- */
-  float dissolveW = uSig_dissolve * smoothstep(0.62, 0.94, inten);
+  /* ---- dissolve colour: the cubist painting gets its first genuinely
+     colourful psychedelic touch — see kDissolve's header note for why
+     this replaced the old per-facet kShimmer. Onset pulled all the way
+     into Common (feedback: Common/Strong should show "some of the
+     colorful aspects", reserving the full k-hole exclusively for Heavy) —
+     a modest colour-shift by Common, strong by Strong, full replacement
+     only by Heavy. */
+  float dissolveW = uSig_dissolve * smoothstep(0.36, 0.88, inten);
   if (dissolveW > 0.004) {
     scn = mix(scn, kDissolve(suv, scn, dissolveW), dissolveW);
   }
