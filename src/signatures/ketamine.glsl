@@ -138,7 +138,7 @@ vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
   float pulse = 0.4 + 0.6 * sin(uTime * 0.12 + sig * 3.0);
   vec3 dissolved = palette * pulse;
 
-  return mix(baseCol, dissolved, clamp(mask * 1.3, 0.0, 1.0) * w);
+  return mix(baseCol, dissolved, clamp(mask * 1.6, 0.0, 1.0) * w);
 }
 
 vec3 kCubism(vec2 uv, float voff, float w){
@@ -181,18 +181,20 @@ vec3 kCubism(vec2 uv, float voff, float w){
 
   /* mostly the wide flat average — the "synthetic/low-complexity" read —
      with a little of the photo underneath at low-mid tiers, fading to
-     (almost) none by Heavy so the dissolve below has nothing photographic
-     left to fight */
-  vec3 c0 = mix(photo0, flat0, 0.55 + 0.42 * w);
-  vec3 c1 = mix(photo1, flat1, 0.55 + 0.42 * w);
+     none by Heavy (ceiling raised per feedback that the source photo was
+     still clearly recognisable — w reaches 1.0 at Heavy now, so this goes
+     fully flat rather than topping out at 97%) so the dissolve has nothing
+     photographic left to fight */
+  vec3 c0 = mix(photo0, flat0, 0.45 + 0.55 * w);
+  vec3 c1 = mix(photo1, flat1, 0.45 + 0.55 * w);
 
-  /* light posterize — "algorithmic... simplistic in complexity" — blended
-     in rather than a full replace, so it reads as quantized shading, not
-     harsh banding */
+  /* posterize — blended in harder at the top end (was capped at 50%) so
+     Heavy reads as genuinely quantized/synthetic shading, not a softened
+     photo */
   vec3 post0 = floor(c0 * 4.5 + 0.5) / 4.5;
   vec3 post1 = floor(c1 * 4.5 + 0.5) / 4.5;
-  c0 = mix(c0, post0, 0.5 * w);
-  c1 = mix(c1, post1, 0.5 * w);
+  c0 = mix(c0, post0, 0.35 + 0.35 * w);
+  c1 = mix(c1, post1, 0.35 + 0.35 * w);
 
   /* small, bounded radial highlight from the facet's own seed — reads as
      a flat polygon lit from its centre, unlike the old plane-wave sheen
@@ -214,8 +216,10 @@ vec3 kCubism(vec2 uv, float voff, float w){
 vec3 sigColor(vec3 col, vec2 uv){
   float inten = uIntensity;
 
-  /* ---- world recession: sample a shrunk scene, dark around it ---- */
-  float rec = uSig_recession * smoothstep(0.30, 1.0, inten) * 0.58;
+  /* ---- world recession: sample a shrunk scene, dark around it ----
+     onset pushed back per feedback ("starting off way too strong") —
+     recession now waits until Common instead of waking up right at it */
+  float rec = uSig_recession * smoothstep(0.45, 1.0, inten) * 0.58;
   vec2 ruv = (uv - 0.5) / max(1.0 - rec, 1e-3) + 0.5;
   /* boundary — user feedback: the old superellipse mask had too tight a
      feather (a ~0.16-wide band) and stayed a static rounded rectangle; it
@@ -245,22 +249,30 @@ vec3 sigColor(vec3 col, vec2 uv){
      glow, a wall's outline) fully intact — the luminance/shape layout needs
      to move too for the picture to actually stop being discernible, not
      just recolour discernibly. Amplitude breathes on a slow LFO so it
-     reads as swelling/pulsing rather than a jump-cut. */
-  float dissW0 = uSig_dissolve * smoothstep(0.60, 0.95, inten);
+     reads as swelling/pulsing rather than a jump-cut. Onset pushed to
+     Strong (was Common) — this stage plus everything below it was firing
+     far too early and stacking into an overwhelming Light/Common render. */
+  float dissW0 = uSig_dissolve * smoothstep(0.68, 0.97, inten);
   if (dissW0 > 0.004) {
     float t = uTime * 0.075;
     vec2 n = vec2(fbm(suv * 2.1 + t), fbm(suv * 2.1 - t + 9.0));
     float pulse = 0.55 + 0.45 * sin(uTime * 0.13);
-    suv = clamp(suv + (n - 0.5) * 0.085 * dissW0 * pulse, 0.0, 1.0);
+    suv = clamp(suv + (n - 0.5) * 0.11 * dissW0 * pulse, 0.0, 1.0);
   }
 
-  /* ---- vertical-divergence double vision (reduced a bit per feedback) ---- */
-  float voff = uSig_verticalDouble * (0.005 + 0.032 * smoothstep(0.12, 0.85, inten));
+  /* ---- vertical-divergence double vision — onset pushed back per
+     feedback (was waking up by Light, which is a big part of why the
+     render felt too strong far too early); this is now the ONLY diplopia
+     mechanism ketamine uses (the profile used to also carry the shared
+     generic horizontal doubleVision param, which duplicated this) ---- */
+  float voff = uSig_verticalDouble * (0.005 + 0.032 * smoothstep(0.32, 0.92, inten));
   vec3 scn = 0.5 * (texture(uScene, suv).rgb
                   + texture(uScene, clamp(suv + vec2(0.0, voff), 0.0, 1.0)).rgb);
 
-  /* ---- painting flattening: smooth the weak-edge regions ---- */
-  float flatW = uSig_flatten * smoothstep(0.10, 0.70, inten);
+  /* ---- painting flattening: smooth the weak-edge regions — onset pushed
+     back (was starting at Threshold's edge and ~70% strength by Common,
+     which is a lot of the "too strong early" complaint) ---- */
+  float flatW = uSig_flatten * smoothstep(0.30, 0.88, inten);
   if (flatW > 0.004) {
     float em = edgeAt(suv).z;
     /* hard edges (mortar lines, object outlines) used to stay fully crisp
@@ -274,10 +286,13 @@ vec3 sigColor(vec3 col, vec2 uv){
     scn = mix(scn, vec3(0.5) + (scn - vec3(0.5)) * 0.62, flatW * 0.65);
   }
 
-  /* ---- environmental cubism / scenery slicing: wakes up by upper-Common
-     now (was Strong-only — user feedback: "no psychedelic effects after
-     high common doses") ---- */
-  float cubW = uSig_cubism * smoothstep(0.35, 0.85, inten);
+  /* ---- environmental cubism / scenery slicing — onset pulled back to
+     Common (was upper-Threshold, another big contributor to "too strong
+     early"), but the ceiling is raised so Strong/Heavy read as a genuine
+     reality-change instead of a light dusting: by Heavy this reaches full
+     weight and kCubism's own photo/flat ratio (below) is pushed further
+     toward flat, so the facet reconstruction dominates rather than tints. */
+  float cubW = uSig_cubism * smoothstep(0.48, 0.92, inten);
   if (cubW > 0.004) {
     vec3 cub = kCubism(suv, voff, cubW);
     scn = mix(scn, cub, cubW);
@@ -285,8 +300,10 @@ vec3 sigColor(vec3 col, vec2 uv){
 
   /* ---- Heavy dissolve: the (now-cubist) painting gives way to a
      continuous, structure-driven breathing pattern — see kDissolve's
-     header note for why this replaced the old per-facet kShimmer ---- */
-  float dissolveW = uSig_dissolve * smoothstep(0.80, 1.0, inten);
+     header note for why this replaced the old per-facet kShimmer.
+     Reaches full strength slightly earlier (0.78 instead of 0.80) since
+     the source photo was still clearly recognisable at Heavy. ---- */
+  float dissolveW = uSig_dissolve * smoothstep(0.78, 1.0, inten);
   if (dissolveW > 0.004) {
     scn = mix(scn, kDissolve(suv, scn, dissolveW), dissolveW);
   }
