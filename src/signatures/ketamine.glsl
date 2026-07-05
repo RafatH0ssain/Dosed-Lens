@@ -24,8 +24,21 @@
        rainbow-saturated.
    Shared params supply stutter, desat, cool cast, late tunnel vignette.
    Heavy-only "dissolve": user feedback asked for the image to visibly
-   disappear into pattern/shimmer/breathing at Heavy, not just facet — see
-   kShimmer below.
+   disappear into pattern/shimmer/breathing at Heavy. First attempt
+   (kShimmer, mixed per-facet inside kCubism's 2-nearest-neighbour Voronoi
+   partition) reintroduced the "V": with only 6 seeds, the boundary between
+   the two globally-nearest facets is a long, near-straight Voronoi edge,
+   and once the two sides carry strongly divergent shimmer colours that
+   edge reads as a hard seam/chevron across the whole frame. It also read
+   as "a cloud moving over it" — the pattern was raw multi-octave noise
+   with no tie to the photo's own edges/luminance, a floating overlay
+   rather than the image's own structure changing. v2 (kDissolve) drops the
+   facet system for this stage: one continuous field, advected along the
+   image's own edge tangents and masked by texture-energy/luminance (the
+   same masking approach P3 uses for the psychedelic profiles), so the
+   "reality change" borrows the psychedelics' structure-driven pattern
+   language but stays flat/posterized/desaturated — ketamine's own
+   documented "algorithmic" look, never LSD/DMT's rainbow or fractal tiling.
    Params: recession, flatten, kholeTunnel, verticalDouble, cubism, dissolve
    sources: psychonautwiki:ketamine */
 
@@ -73,24 +86,59 @@ vec3 kFlatWide(vec2 uv, float r){
    "algorithmic... synthetic... simplistic in complexity" by making each
    facet mostly a wide flat average of itself (kFlatWide) rather than a
    sharp resample, lightly posterized. */
-/* Heavy dissolve — user feedback: "make the image disappear in patterns
-   and shimmers and breathing at heavy." Above ~0.8 intensity, each
-   facet's remaining photographic content is progressively replaced by a
-   shimmering, slowly breathing synthetic colour field built from the
-   facet's own flat-shaded colour and the photo's overall dominant
-   palette (uSeedCol) — the picture is genuinely gone at full Heavy, not
-   just faceted, but it stays in ketamine's own soft-blob/flat-shaded
-   language rather than borrowing DMT's tunnel or LSD's fractal. */
-vec3 kShimmer(vec2 p, float ph, vec3 baseCol){
-  float n1 = fbm(p * 1.4 + ph * 3.0 + uTime * 0.09);
-  float n2 = fbm(p * 2.6 - ph * 2.0 - uTime * 0.06);
-  float shimmer = 0.5 + 0.5 * sin((n1 + n2) * 7.0 + uTime * 0.7 + ph * 4.0);
-  vec3 seedA = mix(uSeedCol[0].rgb, uSeedCol[1].rgb, 0.5 + 0.5 * sin(ph));
-  vec3 seedB = mix(uSeedCol[2].rgb, uSeedCol[3].rgb, 0.5 + 0.5 * cos(ph));
-  vec3 palette = mix(seedA, seedB, shimmer);
-  vec3 col = mix(baseCol, palette, 0.7);
-  float breathe = 0.55 + 0.45 * sin(uTime * 0.15 + ph * 1.6);
-  return col * breathe;
+/* kDissolve — see the file-header note above for why this replaced the
+   per-facet kShimmer. One continuous field, no Voronoi partition anywhere
+   in it, so there is no seam it can reintroduce. `uv` here is the same
+   whole-frame receded coordinate sigColor already uses (suv), not a
+   per-facet sample, and the pattern is advected along the image's OWN
+   edge tangents (edgeTangent/edgeAt from P1) rather than drifting freely
+   — that's what keeps it from reading as an unrelated cloud passing over
+   the photo. */
+vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
+  vec2 tang = edgeTangent(uv);
+  float mag = edgeAt(uv).z;
+  float crawl = 0.5 + 0.5 * sin(uTime * 0.10 + fbm(uv * 1.7) * 4.0);
+  vec2 flow = uv + tang * (0.35 + 0.65 * mag) * (0.04 + 0.05 * crawl) * w;
+
+  float n1 = fbm(flow * 2.2 + uTime * 0.045);
+  float n2 = fbm(flow * 4.1 - uTime * 0.032 + 5.0);
+  float sig = n1 * 0.6 + n2 * 0.4;
+  /* wider bands (3 instead of 4 levels), mixed in harder — first pass's
+     bands were too fine/subtle to read as a visible pattern at all,
+     especially over smooth low-texture surfaces */
+  float post = floor(sig * 3.0 + 0.5) / 3.0;
+  sig = mix(sig, post, 0.8);
+
+  /* image-structure mask (same shape as P3's), but with a much higher
+     floor than P3 uses — P3 is an overlay riding ON TOP of a photo that
+     stays visible underneath, so it can afford to hide in flat/extreme
+     regions; here the whole point is the photo itself giving way, so even
+     smooth walls and bright light-glow need to dissolve, just a little
+     less eagerly than high-texture surfaces do. */
+  float l = lumAt(uv, 0.0);
+  float midband = abs(lumAt(uv, 2.0) - lumAt(uv, 5.0));
+  float texEnergy = smoothstep(0.01, 0.10, midband);
+  float lumMask = mix(0.6, 1.0, smoothstep(0.02, 0.18, l))
+                * mix(0.6, 1.0, 1.0 - smoothstep(0.82, 0.99, l));
+  float mask = mix(0.7, 1.0, texEnergy) * lumMask;
+
+  vec3 seedA = mix(uSeedCol[0].rgb, uSeedCol[2].rgb, 0.5 + 0.5 * sin(uTime * 0.05));
+  vec3 seedB = mix(uSeedCol[1].rgb, uSeedCol[3].rgb, 0.5 + 0.5 * cos(uTime * 0.045));
+  vec3 palette = mix(seedA, seedB, sig);
+  /* only a light tie to the exact underlying pixel's own hue — enough that
+     the result still visibly belongs to this photo, not so much that a
+     uniform wall (near-constant chroma) barely changes at all, which is
+     what made the dissolve read as "basically still a photo" over smooth
+     surfaces */
+  vec3 chroma = baseCol / max(luma(baseCol), 0.05);
+  palette = mix(palette, palette * chroma, 0.28);
+
+  /* stronger brightness breathing — the previous 0.6-1.0 range was too
+     close to flat to read as "breathing" at all */
+  float pulse = 0.4 + 0.6 * sin(uTime * 0.12 + sig * 3.0);
+  vec3 dissolved = palette * pulse;
+
+  return mix(baseCol, dissolved, clamp(mask * 1.3, 0.0, 1.0) * w);
 }
 
 vec3 kCubism(vec2 uv, float voff, float w){
@@ -157,13 +205,6 @@ vec3 kCubism(vec2 uv, float voff, float w){
   c0 = hueRot(c0, ((hash1(i0 * 2.0) - 0.5) * 0.30 + (br0 - 0.5) * 0.15) * w);
   c1 = hueRot(c1, ((hash1(i1 * 2.0) - 0.5) * 0.30 + (br1 - 0.5) * 0.15) * w);
 
-  /* Heavy dissolve: the image disappears into shimmer/breathing */
-  float dissolveW = uSig_dissolve * smoothstep(0.80, 1.0, uIntensity);
-  if (dissolveW > 0.004) {
-    c0 = mix(c0, kShimmer(p, ph0, c0), dissolveW);
-    c1 = mix(c1, kShimmer(p, ph1, c1), dissolveW);
-  }
-
   /* wide, soft cross-fade between only the two closest facets — no hard
      seam anywhere in the frame */
   float weight0 = smoothstep(-0.35, 0.35, d1 - d0);
@@ -176,14 +217,42 @@ vec3 sigColor(vec3 col, vec2 uv){
   /* ---- world recession: sample a shrunk scene, dark around it ---- */
   float rec = uSig_recession * smoothstep(0.30, 1.0, inten) * 0.58;
   vec2 ruv = (uv - 0.5) / max(1.0 - rec, 1e-3) + 0.5;
-  /* rounded mask — user feedback: the receding painting's hard rectangular
-     corners should be rounded off. A superellipse (squircle) softens the
-     corners into a curve while staying mostly rectangular in the middle
-     of each edge, rather than a full oval/porthole. */
-  vec2 rc = (ruv - 0.5) * 2.0;
-  float superell = pow(abs(rc.x), 4.0) + pow(abs(rc.y), 4.0);
-  float inside = smoothstep(1.06, 0.90, superell);
+  /* boundary — user feedback: the old superellipse mask had too tight a
+     feather (a ~0.16-wide band) and stayed a static rounded rectangle; it
+     read as a hard geometric cutout, not a perceptual edge. This is now a
+     true physical circle (x scaled by uAspect so it isn't stretched into
+     an oval on wide frames), its radius perturbed by three slow, different-
+     rate angular harmonics so the boundary itself is an irregular blob that
+     continuously breathes in and out rather than a fixed shape, and the
+     feather is far wider (almost a full unit of falloff) so there is no
+     crisp edge anywhere between the visible painting and the surrounding
+     dark. */
+  vec2 rc = (ruv - 0.5) * vec2(uAspect, 1.0) * 2.0;
+  float rAng = atan(rc.y, rc.x);
+  float rLen = length(rc);
+  float breatheR = 1.0
+    + 0.09 * sin(uTime * 0.17 + rAng * 3.0)
+    + 0.06 * sin(uTime * 0.11 - rAng * 5.0 + 1.7)
+    + 0.035 * sin(uTime * 0.26 + rAng * 2.0 + 4.1);
+  float edgeR = rLen / max(breatheR, 1e-3);
+  float inside = smoothstep(1.20, 0.45, edgeR);
   vec2 suv = clamp(ruv, 0.0, 1.0);
+
+  /* ---- dissolve pre-warp: before colour gives way to pattern, the whole
+     receded frame visibly breathes/displaces — a genuine 2D low-frequency
+     domain-warp (two independent fbm fields), not just edge-tangent creep,
+     because a colour-only dissolve left recognisable silhouettes (a lamp's
+     glow, a wall's outline) fully intact — the luminance/shape layout needs
+     to move too for the picture to actually stop being discernible, not
+     just recolour discernibly. Amplitude breathes on a slow LFO so it
+     reads as swelling/pulsing rather than a jump-cut. */
+  float dissW0 = uSig_dissolve * smoothstep(0.60, 0.95, inten);
+  if (dissW0 > 0.004) {
+    float t = uTime * 0.075;
+    vec2 n = vec2(fbm(suv * 2.1 + t), fbm(suv * 2.1 - t + 9.0));
+    float pulse = 0.55 + 0.45 * sin(uTime * 0.13);
+    suv = clamp(suv + (n - 0.5) * 0.085 * dissW0 * pulse, 0.0, 1.0);
+  }
 
   /* ---- vertical-divergence double vision (reduced a bit per feedback) ---- */
   float voff = uSig_verticalDouble * (0.005 + 0.032 * smoothstep(0.12, 0.85, inten));
@@ -211,11 +280,15 @@ vec3 sigColor(vec3 col, vec2 uv){
   float cubW = uSig_cubism * smoothstep(0.35, 0.85, inten);
   if (cubW > 0.004) {
     vec3 cub = kCubism(suv, voff, cubW);
-    /* extra push at Heavy so the dissolved/shimmering result isn't
-       diluted back with the un-dissolved photo underneath — the point is
-       for the image to actually disappear, not just mostly */
-    float finalBlend = min(cubW * 0.85 + smoothstep(0.8, 1.0, inten) * 0.15, 0.98);
-    scn = mix(scn, cub, finalBlend);
+    scn = mix(scn, cub, cubW);
+  }
+
+  /* ---- Heavy dissolve: the (now-cubist) painting gives way to a
+     continuous, structure-driven breathing pattern — see kDissolve's
+     header note for why this replaced the old per-facet kShimmer ---- */
+  float dissolveW = uSig_dissolve * smoothstep(0.80, 1.0, inten);
+  if (dissolveW > 0.004) {
+    scn = mix(scn, kDissolve(suv, scn, dissolveW), dissolveW);
   }
 
   /* ---- dark cold surround; k-hole deepens it toward black ---- */
