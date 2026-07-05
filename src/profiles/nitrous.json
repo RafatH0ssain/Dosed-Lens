@@ -10,17 +10,17 @@
     "bloom":        {"curve": "smooth", "max": 0.40},
     "scintilla":    {"curve": "smooth", "max": 0.60},
     "tracers":      {"curve": "early",  "max": 0.30},
-    "whiteOut":     {"curve": "late",   "max": 0.30},
+    "whiteOut":     {"curve": "late",   "max": 0.15},
     "doubleVision": {"curve": "late",   "max": 0.45},
     "stutter":      {"curve": "late",   "max": 0.50}
   },
   "signatureParams": { "throb": 1.0, "envelope": 1.0, "flange": 0.8, "geometry": 0.9 },
   "tierNotes": [
     "Threshold: one soft pulse as the envelope starts; barely a breath.",
-    "Light: gentle ~1.1 Hz throb in scale and brightness.",
-    "Common: full wah-wah — real zoom-breathing throb + phase-picked frame echo + warm dimming mid-envelope. Luminance/blur/glow all ride one shared wave phase so it reads as a single cohesive breath, not several staggered flickers.",
-    "Strong: deep throb, strong flanging, scintilla bursts at envelope peaks; double vision and frame-rate lag (stutter) wake up (late curves); a soft, blurred wall of organic interlocking-circle geometry breathes in with the envelope, bespoke to nitrous (not the shared pattern pass — it needs to pulse with the throb, which a static mask can't do).",
-    "Heavy: acuity fades toward a soft glow at wave peaks, never toward white (user feedback: v1/v2 both still flashed and washed to near-white — lowered the rate to ~1.1 Hz, unified three previously-staggered pulses into one shared wave, and cut both the signature glow blend and the shared whiteOut max hard), constant double vision, heavy frame lag, the geometry wall fully present and breathing; the whole arc decays and restarts every ~25 s."
+    "Light: gentle ~0.55 Hz zoom-breathe, almost no color change.",
+    "Common: full wah-wah, but felt mostly as a real zoom-breathe (the warp) rather than a brightness pulse — phase-picked frame echo + warm dimming mid-envelope.",
+    "Strong: deep zoom-breathe, strong flanging, scintilla bursts at envelope peaks; double vision and frame-rate lag (stutter) wake up (late curves); a soft, blurred wall of organic interlocking-circle geometry breathes in with the envelope, bespoke to nitrous (not the shared pattern pass — it needs to pulse with the throb, which a static mask can't do).",
+    "Heavy: a faint glow at wave peaks, never toward white or a flash (user feedback across three passes: still read as strobing/vibrating even once phases were unified at 1.1 Hz — the fix was to stop carrying the throb in luminance/blur/whiteout at all and move it almost entirely into the warp's zoom-breathe, which cannot read as flashing since it's pure geometry; rate slowed further to 0.55 Hz and every color-channel delta cut to a small fraction of before), constant double vision, heavy frame lag, the geometry wall fully present and breathing; the whole arc decays and restarts every ~25 s."
   ],
   "sources": ["psychonautwiki:nitrous-oxide", "psychonautwiki:visual-effects"]
 }

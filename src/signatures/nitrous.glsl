@@ -7,23 +7,25 @@
    organic, colourful, soft and blurred, based on complex interlocking
    circles" appearing in front of vision at higher doses. Double vision and
    frame-lag reuse the shared P2/P5 params (uP_doubleVision/uP_stutter).
-   Rewritten again after user feedback that it still read as "flashing,
-   too random and quick" with near-100%-white peaks: the original had
-   three effects (luminance, blur, whiteout) each riding a *different*
-   sine phase at 2.5 Hz — three independently-peaking pulses within one
-   0.4s cycle reads as a busy, chaotic flicker even though no single piece
-   is a hard strobe. Now everything rides ONE shared, slower (1.1 Hz),
-   smoothstep-rounded wave, so the whole frame rises and falls as a single
-   cohesive breath instead of an interference pattern between staggered
-   pulses. Whiteout is now a gentle glow, not a wash to near-white.
-   sigWarp:     scale pulses on the wave — the throb should be felt as
-                actual zoom-breathing, not just a brightness flicker
-   sigColor:    luminance + blur + whiteout all riding the SAME wave phase
+   Rewritten a third time after user feedback that it was STILL "literally
+   strobing, not smooth at all" with jittery-feeling vibration at 1.1 Hz:
+   unifying the phase wasn't enough — any full-field luminance/blur pulse
+   reads as "flashing" almost regardless of frequency once the delta
+   between trough and peak is large, because several qualities (sharpness,
+   brightness, glow) all flip together into a visibly different state.
+   This pass leans hard the other way: the fast-channel deltas (luminance,
+   blur, glow) are now small — barely-there — and slowed further (1.1 ->
+   0.55 Hz, a good two-second breath), while the WARP (pure zoom-breathing,
+   no luminance/contrast change at all, so it cannot read as "flashing")
+   carries most of the felt intensity instead.
+   sigWarp:     the dominant carrier now — real, larger zoom-breathing
+   sigColor:    luminance + blur + glow all riding the SAME wave phase, but
+                each cut to a small fraction of what they were
    sigTemporal: flange — blend the history ring one throb period back
    Params: throb, envelope, flange
    sources: psychonautwiki:nitrous-oxide */
 
-const float N2O_HZ = 1.1;
+const float N2O_HZ = 0.55;
 
 float n2oEnv(){
   /* restartable decay: hits 1 at cycle start, ~e^-1 by 9 s */
@@ -58,24 +60,25 @@ float n2oGeom(vec2 p){
 }
 
 vec2 sigWarp(vec2 uv){
-  /* real zoom-breathing on the wave, not a barely-there wobble */
-  float s = 1.0 + n2oWave() * 0.045;
+  /* the dominant carrier of the throb now: a real, larger zoom-breathe.
+     Pure geometry, no luminance/contrast change, so it cannot read as
+     "flashing" no matter how large — this is where the felt intensity
+     should live instead of in the color channel. */
+  float s = 1.0 + n2oWave() * 0.085;
   return (uv - 0.5) / s + 0.5;
 }
 
 vec3 sigColor(vec3 col, vec2 uv){
   float wave = n2oWave(); /* 0..1, single shared phase for everything below */
 
-  /* luminance — a gentle wave, not a flash */
-  col *= 1.0 + (wave - 0.5) * 0.30;
+  /* luminance — barely-there now; the warp carries the throb instead */
+  col *= 1.0 + (wave - 0.5) * 0.10;
 
-  /* blur pulse: acuity suppression riding the SAME wave (no quadrature
-     offset), so blur and brightness rise/fall together as one cohesive
-     pulse instead of a fast interference pattern between staggered
-     effects — this was the main source of the "random/quick flashing" */
-  float bl = wave * 0.55;
+  /* blur pulse: small and slow — this stacked with luminance/whiteout is
+     what read as "vibration"/strobing before, so it's cut hard */
+  float bl = wave * 0.22;
   if (bl > 0.02) {
-    vec2 px = 10.0 * bl / uRes;
+    vec2 px = 5.0 * bl / uRes;
     vec3 soft = ( texture(uScene, uv + px).rgb + texture(uScene, uv - px).rgb
                 + texture(uScene, uv + vec2(px.x, -px.y)).rgb
                 + texture(uScene, uv - vec2(px.x, -px.y)).rgb ) * 0.25;
@@ -88,10 +91,9 @@ vec3 sigColor(vec3 col, vec2 uv){
   float mid = env * (1.0 - env) * 4.0;
   col *= mix(vec3(1.0), vec3(0.93, 0.87, 0.78), mid * 0.5 * smoothstep(0.2, 0.8, uIntensity));
 
-  /* Heavy: a gentle glow at wave peaks — nowhere near whiteout. Rides the
-     same unified wave so it crests and fades with everything else. */
+  /* Heavy: a very faint glow at wave peaks — not a strobe cue at all */
   float wo = smoothstep(0.75, 1.0, uIntensity) * wave;
-  col = mix(col, vec3(1.05, 1.02, 0.96), wo * 0.18);
+  col = mix(col, vec3(1.05, 1.02, 0.96), wo * 0.08);
 
   /* the geometry wall — builds through the envelope, strongest at
      envelope peaks and only at higher doses (slow ~25s arc, not the
