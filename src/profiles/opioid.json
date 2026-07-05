@@ -4,20 +4,21 @@
   "class": "opioid",
   "warning": null,
   "shared": {
-    "warmCast": {"curve": "early",  "max": 0.70},
-    "vignette": {"curve": "smooth", "max": 0.85},
-    "acuity":   {"curve": "smooth", "max": 0.50},
-    "tracers":  {"curve": "smooth", "max": 0.45},
-    "desat":    {"curve": "early",  "max": 0.20},
-    "bloom":    {"curve": "smooth", "max": 0.35}
+    "warmCast":     {"curve": "early",  "max": 0.70},
+    "vignette":     {"curve": "smooth", "max": 0.85},
+    "acuity":       {"curve": "smooth", "max": 0.50},
+    "tracers":      {"curve": "smooth", "max": 0.45},
+    "desat":        {"curve": "early",  "max": 0.20},
+    "bloom":        {"curve": "smooth", "max": 0.35},
+    "doubleVision": {"curve": "late",   "max": 0.40}
   },
-  "signatureParams": { "nodDepth": 0.9, "nodRate": 0.7, "goldenCast": 0.8, "pinhole": 0.85 },
+  "signatureParams": { "nodDepth": 0.9, "nodRate": 0.7, "goldenCast": 0.8, "pinhole": 0.85, "dreamImagery": 0.8 },
   "tierNotes": [
     "Threshold: warmth — the golden-hour cast arrives first (early warmCast).",
     "Light: dimming + the first shallow nod per minute.",
     "Common: regular nod cycle — lid descends, blur and darkening ramp, snap back; pinholing visible.",
-    "Strong: deep nods to 90% black, heavy lids, syrupy tracers.",
-    "Heavy: near-continuous nodding with seconds of black; motion slowed throughout."
+    "Strong: deep nods to 90% black, heavy lids, syrupy tracers; uncontrolled refocus/double vision wakes up (late curve) — PsychonautWiki: eyes 'un-focus and re-focus uncontrollably... present no matter where one focuses.'",
+    "Heavy: near-continuous nodding with seconds of black; motion slowed throughout; constant double vision; at the deepest point of each nod, soft warm hypnagogic dream imagery briefly surfaces in the blackout (PsychonautWiki: nodding 'often accompanied by vivid dream-like visions') before the snap resets it."
   ],
   "sources": ["psychonautwiki:opioids", "psychonautwiki:visual-effects"]
 }

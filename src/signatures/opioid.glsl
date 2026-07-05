@@ -3,12 +3,22 @@
    AWAKE → NODDING (lid gradient descends, blur + darkening ramp, frame
    sinks, time thickens) → SNAP (fast retract, brief over-bright) → AWAKE.
    Cycle shortens and deepens with intensity. Constant golden-hour cast +
-   pinhole vignette ride underneath.
-   Params: nodDepth, nodRate, goldenCast, pinhole */
+   pinhole vignette ride underneath. Two effects added per PsychonautWiki
+   research: (1) a constant, uncontrolled refocus/double-vision — PW: "at
+   high doses, opioids can cause the eyes un-focus and re-focus
+   uncontrollably... present no matter where one focuses" — reuses the
+   shared P2 doubleVision param rather than inventing a second mechanism;
+   (2) hypnagogic dream imagery at the deepest point of a Heavy nod — PW:
+   "one may experience feelings of hypnagogia during a state of 'nodding'
+   which is often accompanied by vivid dream-like visions."
+   Params: nodDepth, nodRate, goldenCast, pinhole, dreamImagery
+   sources: psychonautwiki:opioids */
+
+float nodPeriod(){ return mix(42.0, 9.0, smoothstep(0.1, 1.0, uIntensity) * uSig_nodRate); }
 
 /* returns nod amount 0..1 (1 = lid fully down) with a fast snap release */
 float nodPhase(){
-  float period = mix(42.0, 9.0, smoothstep(0.1, 1.0, uIntensity) * uSig_nodRate);
+  float period = nodPeriod();
   float ci = floor(uTime / period);
   float ph = fract(uTime / period) * period; /* seconds into cycle */
   float start = period * (0.25 + 0.45 * hash1(ci * 7.31));
@@ -22,13 +32,25 @@ float nodPhase(){
 }
 /* brief over-bright pulse right after the snap */
 float snapPulse(){
-  float period = mix(42.0, 9.0, smoothstep(0.1, 1.0, uIntensity) * uSig_nodRate);
+  float period = nodPeriod();
   float ci = floor(uTime / period);
   float ph = fract(uTime / period) * period;
   float start = period * (0.25 + 0.45 * hash1(ci * 7.31));
   float len = 4.0 + 4.0 * hash1(ci * 3.17);
   return smoothstep(start + len, start + len + 0.3, ph)
        * (1.0 - smoothstep(start + len + 0.3, start + len + 1.1, ph));
+}
+
+/* soft, warm, abstract glowing forms — dreamlike, never geometric or
+   rainbow-colored (stays in the golden/warm family) */
+vec3 opioidDream(vec2 uv, float seed){
+  vec2 p = uv * 2.2 + seed * 7.0;
+  float f1 = fbm(p + uTime * 0.05);
+  float f2 = fbm(p * 1.7 - uTime * 0.035 + 4.0);
+  float g = f1 * 0.6 + f2 * 0.4;
+  vec3 dreamCol = pal(g * 0.7 + seed * 0.3, vec3(0.45, 0.38, 0.30), vec3(0.40),
+                       vec3(1.0, 0.85, 0.55), vec3(0.05, 0.10, 0.08));
+  return dreamCol * (0.35 + 0.9 * smoothstep(0.10, 0.80, g));
 }
 
 vec2 sigWarp(vec2 uv){
@@ -61,6 +83,19 @@ vec3 sigColor(vec3 col, vec2 uv){
     col = mix(col, soft, min(nod * 1.3, 1.0));
     col *= 1.0 - lid * 0.96;
     col *= 1.0 - nod * 0.35; /* global dim on top */
+  }
+
+  /* hypnagogic dream imagery — only at the deepest point of a Heavy nod,
+     fading in and out with the nod depth so it feels discovered inside
+     the blackout rather than pasted over it */
+  float dreamW = uSig_dreamImagery * smoothstep(0.85, 1.0, uIntensity) * smoothstep(0.5, 0.9, nod);
+  if (dreamW > 0.004) {
+    float ci = floor(uTime / nodPeriod());
+    vec3 dream = opioidDream(uv, hash1(ci * 4.13));
+    /* replace toward the dream's own brightness rather than darkening it
+       through the already near-black nod color — it should surface as a
+       visible vision inside the blackout, not vanish into it */
+    col = mix(col, dream, dreamW * 0.8);
   }
 
   /* snap: brief over-bright refocus */
