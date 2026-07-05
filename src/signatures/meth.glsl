@@ -80,10 +80,11 @@ vec3 sigColor(vec3 col, vec2 uv){
   float hd = lumAt(uv, 0.0) - lumAt(uv, 3.0);
   col += clamp(vec3(hd), -0.45, 0.45) * w * 1.05;
 
-  /* harsh local contrast, and a slight LIFT (over-bright vigilance) rather than
-     the previous darkening that made it read as dim/bland */
+  /* harsh local contrast, and a LIFT (over-bright vigilance) rather than
+     darkening — bumped further per user feedback ("spot on, just a bit
+     less dark") on top of trimming coolCast/vignette in the profile */
   col = vec3(0.5) + (col - vec3(0.5)) * (1.0 + w * 0.6);
-  col += w * 0.03;
+  col += w * 0.07;
 
   /* fine edge shimmer: high-edge regions crawl/vibrate faintly at ~18 Hz — the
      tweaked, restless quality; kept subtle so it doesn't just read as snow */

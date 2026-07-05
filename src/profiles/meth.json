@@ -6,11 +6,11 @@
   "shared": {
     "sharpenHalo": {"curve": "early",  "max": 0.95},
     "desat":       {"curve": "smooth", "max": 0.28},
-    "coolCast":    {"curve": "smooth", "max": 0.35},
+    "coolCast":    {"curve": "smooth", "max": 0.20},
     "snow":        {"curve": "early",  "max": 0.85},
     "scintilla":   {"curve": "smooth", "max": 0.48},
     "aberration":  {"curve": "early",  "max": 0.38},
-    "vignette":    {"curve": "late",   "max": 0.10}
+    "vignette":    {"curve": "late",   "max": 0.05}
   },
   "signatureParams": { "crawl": 0.85, "shadowEvents": 0.9, "silhouette": 0.7, "harshContrast": 1.0, "vibrate": 0.8, "transform": 0.6, "breathe": 1.0 },
   "tierNotes": [
