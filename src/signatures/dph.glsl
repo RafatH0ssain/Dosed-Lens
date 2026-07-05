@@ -17,7 +17,7 @@
    Skitter clusters, smoke wisps, and the Heavy "someone standing there"
    figure events live in the CPU particle layer.
    Params: sepiaGreen, blurWave, skitter, smoke, pareidolia, figureEvents,
-   drift
+   drift, heavyBreathe
    sources: psychonautwiki:diphenhydramine */
 
 vec2 sigWarp(vec2 uv){
@@ -34,6 +34,19 @@ vec2 sigWarp(vec2 uv){
     vec2 j = vec2(hash12(floor(uv * uRes * 0.5) + floor(uTime * 10.0) * 1.7) - 0.5,
                   hash12(floor(uv * uRes * 0.5) + floor(uTime * 10.0) * 2.3) - 0.5);
     uv += j * w * 0.0016;
+  }
+
+  /* Heavy-only: a stronger, slower, whole-room "breathing" pattern warp —
+     user feedback wanted DPH a little psychedelic-like at Heavy, WITHOUT
+     color (this stays entirely inside sigWarp; sigColor's tone is
+     untouched, no saturation/rainbow added). Bigger and slower than the
+     drift above, and reaches past strong edges into the room broadly. */
+  float hw = uSig_heavyBreathe * smoothstep(0.62, 1.0, uIntensity);
+  if (hw > 0.004) {
+    vec2 tang2 = edgeTangent(uv);
+    float mag2 = edgeAt(uv).z;
+    float breathe = sin(uTime * 0.10 + fbm(uv * 2.3) * 6.0);
+    uv += tang2 * (0.35 + 0.65 * mag2) * breathe * hw * 0.022;
   }
   return uv;
 }
