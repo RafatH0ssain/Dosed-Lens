@@ -39,8 +39,17 @@ void main(){
       vec3 orb = scene(vUv + offs) * 0.55 + scene(vUv - offs) * 0.45;
       col = mix(col, orb * 0.6, pepper * op);
     }
-    vec3 hi = clamp(col * 1.8 + 0.22, 0.0, 1.2);
-    col = mix(col, hi, salt * op * 0.9);
+    /* salt (light) specks had the same problem in reverse: pushing an
+       already-bright/highlight pixel toward 1.2 just stamps a flat white
+       dot on top of the highlight, which is exactly what read as
+       "noticeable white dots." Fade the effect out as local luminance
+       climbs so salt specks stay a subtle sparkle in midtones/shadows —
+       where they're supposed to read as snow — and essentially disappear
+       into highlights that are already blown out, rather than fighting
+       them for a brighter white. */
+    float saltVisible = salt * op * 0.9 * (1.0 - smoothstep(0.60, 0.90, l));
+    vec3 hi = clamp(col * 1.5 + 0.12, 0.0, 1.05);
+    col = mix(col, hi, saltVisible);
   }
 
   /* ---- scintilla: twinkles riding bright regions ---- */
