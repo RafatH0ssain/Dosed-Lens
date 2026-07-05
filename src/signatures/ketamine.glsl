@@ -42,35 +42,17 @@
    Params: recession, flatten, kholeTunnel, verticalDouble, cubism, dissolve
    sources: psychonautwiki:ketamine */
 
-/* Baseline "detachment drift" — user feedback: Common showed no motion
-   whatsoever, "just a static version of the input image a bit blurred and
-   vignetted." sigWarp was a total no-op, and every other mechanic
-   (recession/cubism/dissolve) was gated to start at or after Common, so
-   there was nothing left to animate the frame at all below that point.
-   This is deliberately independent of those later, heavier mechanics: a
-   gentle, continuous edge-tangent crawl (surfaces subtly swim along their
-   own contours, same technique the shared flowWarp/drift passes use
-   elsewhere in the app) plus a slow whole-frame breathing zoom — present
-   from just past Threshold, at low amplitude, so the render is alive at
-   every tier instead of only "switching on" at Strong. PsychonautWiki
-   documents ketamine's dissociation itself as a continuous, floaty,
-   depth/perspective-unstable state well before geometry/cubism appear —
-   this is that baseline, not a preview of the heavier mechanics. */
-vec2 sigWarp(vec2 uv){
-  float w = smoothstep(0.04, 0.6, uIntensity);
-  if (w > 0.004) {
-    vec2 tang = edgeTangent(uv);
-    float mag = edgeAt(uv).z;
-    float crawl = sin(uTime * 0.16 + fbm(uv * 2.0 + 3.0) * 4.0);
-    uv += tang * (0.3 + 0.7 * mag) * crawl * 0.022 * w;
-
-    vec2 asp = vec2(uAspect, 1.0);
-    vec2 c = (uv - 0.5) * asp;
-    float zoom = 1.0 + 0.034 * w * sin(uTime * 0.19);
-    uv = c / zoom / asp + 0.5;
-  }
-  return uv;
-}
+/* No bespoke geometric warp here — a previous pass added one (edge-tangent
+   crawl + breathing zoom) to fix "Common shows no movement," but stacked
+   on the "smooth"-curve shared breathing/drift/flowWarp trio it meant
+   FOUR overlapping surface-motion mechanics were all near full strength by
+   Common, which is a big part of why Common then felt "too strong" and
+   the frame "very laggy" (that plus the shared patternMask reactivating
+   P3's expensive per-pixel path — see ketamine.json). Shared
+   breathing/drift/flowWarp (now on the 'late' curve, so gentle through
+   Common and reserving their strength for Strong/Heavy) are sufficient on
+   their own; this module doesn't need a second copy of the same idea. */
+vec2 sigWarp(vec2 uv){ return uv; }
 
 vec3 kFlat(vec2 uv){
   vec2 px = 5.0 / uRes;
