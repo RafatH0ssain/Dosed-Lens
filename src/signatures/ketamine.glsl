@@ -42,7 +42,35 @@
    Params: recession, flatten, kholeTunnel, verticalDouble, cubism, dissolve
    sources: psychonautwiki:ketamine */
 
-vec2 sigWarp(vec2 uv){ return uv; }
+/* Baseline "detachment drift" — user feedback: Common showed no motion
+   whatsoever, "just a static version of the input image a bit blurred and
+   vignetted." sigWarp was a total no-op, and every other mechanic
+   (recession/cubism/dissolve) was gated to start at or after Common, so
+   there was nothing left to animate the frame at all below that point.
+   This is deliberately independent of those later, heavier mechanics: a
+   gentle, continuous edge-tangent crawl (surfaces subtly swim along their
+   own contours, same technique the shared flowWarp/drift passes use
+   elsewhere in the app) plus a slow whole-frame breathing zoom — present
+   from just past Threshold, at low amplitude, so the render is alive at
+   every tier instead of only "switching on" at Strong. PsychonautWiki
+   documents ketamine's dissociation itself as a continuous, floaty,
+   depth/perspective-unstable state well before geometry/cubism appear —
+   this is that baseline, not a preview of the heavier mechanics. */
+vec2 sigWarp(vec2 uv){
+  float w = smoothstep(0.04, 0.55, uIntensity);
+  if (w > 0.004) {
+    vec2 tang = edgeTangent(uv);
+    float mag = edgeAt(uv).z;
+    float crawl = sin(uTime * 0.11 + fbm(uv * 2.0 + 3.0) * 4.0);
+    uv += tang * (0.3 + 0.7 * mag) * crawl * 0.013 * w;
+
+    vec2 asp = vec2(uAspect, 1.0);
+    vec2 c = (uv - 0.5) * asp;
+    float zoom = 1.0 + 0.024 * w * sin(uTime * 0.14);
+    uv = c / zoom / asp + 0.5;
+  }
+  return uv;
+}
 
 vec3 kFlat(vec2 uv){
   vec2 px = 5.0 / uRes;
@@ -133,9 +161,13 @@ vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
   vec3 chroma = baseCol / max(luma(baseCol), 0.05);
   palette = mix(palette, palette * chroma, 0.28);
 
-  /* stronger brightness breathing — the previous 0.6-1.0 range was too
-     close to flat to read as "breathing" at all */
-  float pulse = 0.4 + 0.6 * sin(uTime * 0.12 + sig * 3.0);
+  /* brightness breathing — BUG FIX: this used to be 0.4 + 0.6*sin(...),
+     which dips to -0.2. Once the mask below can cover nearly the whole
+     frame (raised last round so Heavy would actually dissolve), a
+     negative pulse meant the ENTIRE visible image went negative and
+     clamped to black for a real fraction of every cycle — that's what
+     read as "Heavy just shows black." Always positive now. */
+  float pulse = 0.62 + 0.38 * sin(uTime * 0.12 + sig * 3.0);
   vec3 dissolved = palette * pulse;
 
   return mix(baseCol, dissolved, clamp(mask * 1.6, 0.0, 1.0) * w);
@@ -264,8 +296,13 @@ vec3 sigColor(vec3 col, vec2 uv){
      feedback (was waking up by Light, which is a big part of why the
      render felt too strong far too early); this is now the ONLY diplopia
      mechanism ketamine uses (the profile used to also carry the shared
-     generic horizontal doubleVision param, which duplicated this) ---- */
-  float voff = uSig_verticalDouble * (0.005 + 0.032 * smoothstep(0.32, 0.92, inten));
+     generic horizontal doubleVision param, which duplicated this). Slow
+     amplitude pulse so the ghost visibly breathes rather than sitting as a
+     static, unmoving offset (another symptom of the "no movement at all"
+     feedback — a constant doubling reads as a print defect, not a live
+     effect). ---- */
+  float voff = uSig_verticalDouble * (0.005 + 0.032 * smoothstep(0.32, 0.92, inten))
+             * (0.72 + 0.28 * sin(uTime * 0.16));
   vec3 scn = 0.5 * (texture(uScene, suv).rgb
                   + texture(uScene, clamp(suv + vec2(0.0, voff), 0.0, 1.0)).rgb);
 
