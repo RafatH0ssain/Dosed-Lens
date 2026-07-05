@@ -24,11 +24,21 @@ void main(){
     float op = 0.28 + 0.52 * uP_snow;              /* per-speck opacity */
     float pepper = smoothstep(dens, 0.0, h);       /* h near 0 → dark speck */
     float salt = smoothstep(1.0 - dens, 1.0, h);   /* h near 1 → light speck */
-    /* integrate with the scene: pepper darkens the underlying pixel and salt
-       lifts it (a small absolute floor keeps snow faintly visible on flat/dark
-       fields) — perturbing the image rather than stamping fixed black/white
-       dots that read as a pasted overlay */
-    col = mix(col, col * 0.15, pepper * op);
+    /* pepper specks used to just darken the pixel in place, which reads as
+       a flat black dot pasted over bright highlights. Instead, sample a
+       tiny distorted orb of the pixels around it (two opposite offset
+       taps) and darken THAT — in a blown-out highlight the neighbourhood
+       is bright too, so the speck comes out as a soft translucent smudge
+       instead of a hard black dot; in textured regions it reads as a
+       tiny lens-like refraction artifact rather than an ink stamp. */
+    if (pepper > 0.003) {
+      vec2 px = 1.0 / uRes;
+      float ang = hash12(cell + 3.7) * TAU;
+      float rad = 1.3 + 1.9 * hash12(cell + 9.1);
+      vec2 offs = vec2(cos(ang), sin(ang)) * rad * px;
+      vec3 orb = scene(vUv + offs) * 0.55 + scene(vUv - offs) * 0.45;
+      col = mix(col, orb * 0.6, pepper * op);
+    }
     vec3 hi = clamp(col * 1.8 + 0.22, 0.0, 1.2);
     col = mix(col, hi, salt * op * 0.9);
   }
