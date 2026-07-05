@@ -130,12 +130,18 @@ vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
 
   float n1 = fbm(flow * 2.2 + uTime * 0.07);
   float n2 = fbm(flow * 4.1 - uTime * 0.05 + 5.0);
-  float sig = n1 * 0.6 + n2 * 0.4;
+  float sigRaw = n1 * 0.6 + n2 * 0.4;
   /* wider bands (3 instead of 4 levels), mixed in harder — first pass's
      bands were too fine/subtle to read as a visible pattern at all,
      especially over smooth low-texture surfaces */
-  float post = floor(sig * 3.0 + 0.5) / 3.0;
-  sig = mix(sig, post, 0.8);
+  float post = floor(sigRaw * 3.0 + 0.5) / 3.0;
+  float sig = mix(sigRaw, post, 0.8);
+  /* graphic band-edge accent — feedback wanted "patterns", not a soft
+     blur: a thin contour line right where the posterize bands change,
+     the same edgeGlow technique P3 uses for its psychedelic overlay, so
+     the pattern reads as a structured, almost hand-drawn shape rather
+     than a gradient smear */
+  float bandEdge = pow(1.0 - abs(sin(sigRaw * 9.0 + uTime * 0.15)), 8.0);
 
   /* image-structure mask (same shape as P3's), but with a much higher
      floor than P3 uses — P3 is an overlay riding ON TOP of a photo that
@@ -169,6 +175,10 @@ vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
      read as "Heavy just shows black." Always positive now. */
   float pulse = 0.62 + 0.38 * sin(uTime * 0.12 + sig * 3.0);
   vec3 dissolved = palette * pulse;
+  /* darken along the band-edge contour rather than brighten — reads as an
+     ink-like line separating facets/patches instead of a highlight glow,
+     staying in ketamine's flat/dim register */
+  dissolved *= 1.0 - bandEdge * 0.5;
 
   return mix(baseCol, dissolved, clamp(mask * 1.6, 0.0, 1.0) * w);
 }
@@ -176,7 +186,11 @@ vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
 vec3 kCubism(vec2 uv, float voff, float w){
   vec2 asp = vec2(uAspect, 1.0);
   vec2 p = uv * asp;
-  const int N = 6;
+  /* more seeds (was 6) — feedback wanted more abstractness/fragmentation
+     at Strong/Heavy rather than a photo with a handful of large tinted
+     regions; more, smaller facets read as genuine reconstruction instead
+     of a lightly-panelled photo */
+  const int N = 11;
   float d0 = 1e9, d1 = 1e9;
   float i0 = 0.0, i1 = 0.0;
   vec2 seed0 = vec2(0.0), seed1 = vec2(0.0);
@@ -220,13 +234,13 @@ vec3 kCubism(vec2 uv, float voff, float w){
   vec3 c0 = mix(photo0, flat0, 0.45 + 0.55 * w);
   vec3 c1 = mix(photo1, flat1, 0.45 + 0.55 * w);
 
-  /* posterize — blended in harder at the top end (was capped at 50%) so
-     Heavy reads as genuinely quantized/synthetic shading, not a softened
-     photo */
-  vec3 post0 = floor(c0 * 4.5 + 0.5) / 4.5;
-  vec3 post1 = floor(c1 * 4.5 + 0.5) / 4.5;
-  c0 = mix(c0, post0, 0.35 + 0.35 * w);
-  c1 = mix(c1, post1, 0.35 + 0.35 * w);
+  /* posterize — fewer levels and blended in much harder at the top end
+     (feedback wanted more abstractness, "not plain blur") so Heavy reads
+     as starkly quantized/graphic shading instead of a softened photo */
+  vec3 post0 = floor(c0 * 3.2 + 0.5) / 3.2;
+  vec3 post1 = floor(c1 * 3.2 + 0.5) / 3.2;
+  c0 = mix(c0, post0, 0.35 + 0.60 * w);
+  c1 = mix(c1, post1, 0.35 + 0.60 * w);
 
   /* small, bounded radial highlight from the facet's own seed — reads as
      a flat polygon lit from its centre, unlike the old plane-wave sheen
@@ -271,7 +285,18 @@ vec3 sigColor(vec3 col, vec2 uv){
     + 0.06 * sin(uTime * 0.11 - rAng * 5.0 + 1.7)
     + 0.035 * sin(uTime * 0.26 + rAng * 2.0 + 4.1);
   float edgeR = rLen / max(breatheR, 1e-3);
-  float inside = smoothstep(1.20, 0.45, edgeR);
+  /* BUG FIX: this circular crop used to apply unconditionally — a circle
+     inscribed in a rectangular frame always misses the four corners, so
+     even at Threshold/Light (recession = 0, nothing should be cropped at
+     all) the corners were permanently black wedges. That's both "50% of
+     the screen is black even at light dose" and the reported "V shapes"
+     (a circle clipped to a rectangle leaves exactly four V/triangle
+     wedges). Gated now by the same onset as recession itself, so at low
+     intensity `inside` is 1.0 everywhere (full rectangular frame, nothing
+     cropped) and the circular boundary only appears once recession is
+     actually shrinking the world. */
+  float boundaryW = smoothstep(0.42, 0.85, inten);
+  float inside = mix(1.0, smoothstep(1.20, 0.45, edgeR), boundaryW);
   vec2 suv = clamp(ruv, 0.0, 1.0);
 
   /* ---- dissolve pre-warp: before colour gives way to pattern, the whole
