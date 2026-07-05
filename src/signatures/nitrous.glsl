@@ -54,13 +54,13 @@ vec3 sigColor(vec3 col, vec2 uv){
   float th = n2oLFO(0.0);
   float thQ = n2oLFO(PI * 0.5); /* 90° out of phase */
 
-  /* luminance throb — much more felt */
-  col *= 1.0 + th * 0.42;
+  /* luminance throb — felt, but a gentle wave rather than a flash */
+  col *= 1.0 + th * 0.26;
 
   /* blur pulse: acuity suppression on the quadrature phase, strong enough
      to read as "blurred vision to the point of all-encompassing
      blindness" at the top of the swing */
-  float bl = min(max(thQ, 0.0) * 1.35, 1.0);
+  float bl = min(max(thQ, 0.0) * 1.1, 1.0);
   if (bl > 0.02) {
     vec2 px = 11.0 * bl / uRes;
     vec3 soft = ( texture(uScene, uv + px).rgb + texture(uScene, uv - px).rgb
@@ -75,9 +75,11 @@ vec3 sigColor(vec3 col, vec2 uv){
   float mid = env * (1.0 - env) * 4.0;
   col *= mix(vec3(1.0), vec3(0.93, 0.87, 0.78), mid * 0.5 * smoothstep(0.2, 0.8, uIntensity));
 
-  /* Heavy: near-whiteout blindness at LFO peaks */
-  float wo = smoothstep(0.68, 1.0, uIntensity) * pow(max(th, 0.0), 2.2);
-  col = mix(col, vec3(1.05, 1.02, 0.96), wo * 0.78);
+  /* Heavy: acuity fades toward a soft glow at LFO peaks — a slow-cresting
+     wave (wide, low exponent) rather than a strobing flash-cut, since a
+     sharp pow() spike at 2.5 Hz reads as literal flashing lights */
+  float wo = smoothstep(0.75, 1.0, uIntensity) * pow(max(th, 0.0), 1.2);
+  col = mix(col, vec3(1.05, 1.02, 0.96), wo * 0.38);
 
   /* the geometry wall — builds through the envelope, strongest at LFO
      peaks and only at higher doses */

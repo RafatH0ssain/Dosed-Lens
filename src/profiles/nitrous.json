@@ -20,7 +20,7 @@
     "Light: gentle 2.5 Hz throb in scale and brightness.",
     "Common: full wah-wah — real zoom-breathing throb + phase-picked frame echo + warm dimming mid-envelope.",
     "Strong: deep throb, strong flanging, scintilla bursts at envelope peaks; double vision and frame-rate lag (stutter) wake up (late curves); a soft, blurred wall of organic interlocking-circle geometry breathes in with the envelope, bespoke to nitrous (not the shared pattern pass — it needs to pulse with the 2.5 Hz throb, which a static mask can't do).",
-    "Heavy: acuity suppression toward blindness at LFO peaks (blur pulse + whiteout stack), constant double vision, heavy frame lag, the geometry wall fully present and throbbing; the whole arc decays and restarts every ~25 s."
+    "Heavy: acuity fades toward a soft glow at LFO peaks — a slow-cresting wave, not a strobe (user feedback: the original whiteout spike read as literal flashing lights; softened the peak curve and cut the blend/luminance-swing strength considerably), constant double vision, heavy frame lag, the geometry wall fully present and throbbing; the whole arc decays and restarts every ~25 s."
   ],
   "sources": ["psychonautwiki:nitrous-oxide", "psychonautwiki:visual-effects"]
 }
