@@ -61,14 +61,16 @@ vec2 sigWarp(vec2 uv){
   uv.y += nodPhase() * 0.02;
 
   /* slow, dreamy breathe/sway on the image's own structure at higher
-     doses — languid, not nervous, matching the warm nod identity */
-  float bw = uSig_sway * smoothstep(0.45, 1.0, uIntensity);
+     doses — languid, not nervous, matching the warm nod identity.
+     Strengthened per user feedback ("almost perfect, just needs a bit
+     more breathing/patterns"). */
+  float bw = uSig_sway * smoothstep(0.4, 1.0, uIntensity);
   if (bw > 0.004) {
     vec2 tang = edgeTangent(uv);
     float mag = edgeAt(uv).z;
     float breathe = sin(uTime * 0.35) * 0.5 + 0.5 * sin(uTime * 0.21 + 1.7);
-    uv += tang * mag * breathe * bw * 0.009;
-    uv.x += sin(uTime * 0.18) * 0.0045 * bw;
+    uv += tang * (0.3 + 0.7 * mag) * breathe * bw * 0.016;
+    uv.x += sin(uTime * 0.18) * 0.0075 * bw;
   }
   return uv;
 }
@@ -83,12 +85,12 @@ vec3 sigColor(vec3 col, vec2 uv){
   /* pinhole vignette: ~80% of frame at Light → ~55% at Heavy; the
      boundary itself gently breathes/sways at higher doses rather than
      sitting perfectly rigid */
-  float swayAmt = uSig_sway * smoothstep(0.45, 1.0, uIntensity);
+  float swayAmt = uSig_sway * smoothstep(0.4, 1.0, uIntensity);
   vec2 c = (uv - 0.5) * vec2(uAspect, 1.0);
-  c += vec2(sin(uTime * 0.23) * 0.03, cos(uTime * 0.17) * 0.02) * swayAmt;
+  c += vec2(sin(uTime * 0.23) * 0.05, cos(uTime * 0.17) * 0.035) * swayAmt;
   float r = length(c);
   float aperture = mix(0.85, 0.48, smoothstep(0.1, 1.0, uIntensity) * uSig_pinhole)
-                 * (1.0 + sin(uTime * 0.30) * 0.05 * swayAmt);
+                 * (1.0 + sin(uTime * 0.30) * 0.08 * swayAmt);
   col *= 1.0 - smoothstep(aperture * 0.55, aperture, r) * 0.9;
 
   /* nod: upper-lid gradient descends + blur + darkening */
