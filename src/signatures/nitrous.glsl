@@ -1,37 +1,50 @@
 /* Nitrous — "everything throbs in waves, echoing, warm and dim"
-   Identity: a 2.5 Hz global throb LFO under a ~25 s decay-and-restart
+   Identity: a slow global throb LFO under a ~25 s decay-and-restart
    envelope (the short arc of the experience). Reworked per PsychonautWiki:
    documented nitrous effects are acuity suppression to the point of
    blindness, double vision, frame-rate/pattern-recognition suppression,
    and — the distinctive one — "a static wall of geometry... simplistic,
    organic, colourful, soft and blurred, based on complex interlocking
    circles" appearing in front of vision at higher doses. Double vision and
-   frame-lag reuse the shared P2/P5 params (uP_doubleVision/uP_stutter);
-   the geometry reuses P3's image-masked form-constant lattice
-   (uP_patternMask) rather than inventing a second pattern system.
-   sigWarp:     scale pulses hard on the LFO — the throb should be felt as
+   frame-lag reuse the shared P2/P5 params (uP_doubleVision/uP_stutter).
+   Rewritten again after user feedback that it still read as "flashing,
+   too random and quick" with near-100%-white peaks: the original had
+   three effects (luminance, blur, whiteout) each riding a *different*
+   sine phase at 2.5 Hz — three independently-peaking pulses within one
+   0.4s cycle reads as a busy, chaotic flicker even though no single piece
+   is a hard strobe. Now everything rides ONE shared, slower (1.1 Hz),
+   smoothstep-rounded wave, so the whole frame rises and falls as a single
+   cohesive breath instead of an interference pattern between staggered
+   pulses. Whiteout is now a gentle glow, not a wash to near-white.
+   sigWarp:     scale pulses on the wave — the throb should be felt as
                 actual zoom-breathing, not just a brightness flicker
-   sigColor:    luminance pulse, quadrature-phase blur pulse (now strong
-                enough to read as acuity suppression), warm dim mid-
-                envelope, near-blindness whiteout at Heavy LFO peaks
+   sigColor:    luminance + blur + whiteout all riding the SAME wave phase
    sigTemporal: flange — blend the history ring one throb period back
    Params: throb, envelope, flange
    sources: psychonautwiki:nitrous-oxide */
+
+const float N2O_HZ = 1.1;
 
 float n2oEnv(){
   /* restartable decay: hits 1 at cycle start, ~e^-1 by 9 s */
   float cyc = mod(uTime, 25.0);
   return exp(-cyc / 9.0) * uSig_envelope + (1.0 - uSig_envelope) * 0.6;
 }
-float n2oLFO(float phase){
-  return sin(TAU * 2.5 * uTime + phase) * n2oEnv()
-       * uSig_throb * smoothstep(0.06, 0.75, uIntensity);
+
+/* single unified wave, 0..1, envelope+intensity-scaled, peaks rounded
+   (smoothstep-shaped) so there's no sharp instantaneous transition —
+   everything in sigColor rides this same phase so the throb reads as one
+   cohesive gradual wave rather than several staggered pulses */
+float n2oWave(){
+  float raw = 0.5 + 0.5 * sin(TAU * N2O_HZ * uTime);
+  raw = raw * raw * (3.0 - 2.0 * raw); /* round the peaks further */
+  return raw * n2oEnv() * uSig_throb * smoothstep(0.06, 0.75, uIntensity);
 }
 
 /* "a static wall of geometry... organic, colourful, soft and blurred,
    based on complex interlocking circles" — P3's shared pattern pass isn't
-   phase-locked to the throb LFO, so this bespoke layer lives directly in
-   the signature and breathes with the envelope instead. */
+   phase-locked to the throb, so this bespoke layer lives directly in the
+   signature and breathes with the slow envelope instead. */
 float n2oGeom(vec2 p){
   float g = 0.0;
   for (int i = 0; i < 4; i++){
@@ -45,45 +58,45 @@ float n2oGeom(vec2 p){
 }
 
 vec2 sigWarp(vec2 uv){
-  /* real zoom-breathing on the throb, not a barely-there wobble */
-  float s = 1.0 + max(n2oLFO(0.0), 0.0) * 0.055;
+  /* real zoom-breathing on the wave, not a barely-there wobble */
+  float s = 1.0 + n2oWave() * 0.045;
   return (uv - 0.5) / s + 0.5;
 }
 
 vec3 sigColor(vec3 col, vec2 uv){
-  float th = n2oLFO(0.0);
-  float thQ = n2oLFO(PI * 0.5); /* 90° out of phase */
+  float wave = n2oWave(); /* 0..1, single shared phase for everything below */
 
-  /* luminance throb — felt, but a gentle wave rather than a flash */
-  col *= 1.0 + th * 0.26;
+  /* luminance — a gentle wave, not a flash */
+  col *= 1.0 + (wave - 0.5) * 0.30;
 
-  /* blur pulse: acuity suppression on the quadrature phase, strong enough
-     to read as "blurred vision to the point of all-encompassing
-     blindness" at the top of the swing */
-  float bl = min(max(thQ, 0.0) * 1.1, 1.0);
+  /* blur pulse: acuity suppression riding the SAME wave (no quadrature
+     offset), so blur and brightness rise/fall together as one cohesive
+     pulse instead of a fast interference pattern between staggered
+     effects — this was the main source of the "random/quick flashing" */
+  float bl = wave * 0.55;
   if (bl > 0.02) {
-    vec2 px = 11.0 * bl / uRes;
+    vec2 px = 10.0 * bl / uRes;
     vec3 soft = ( texture(uScene, uv + px).rgb + texture(uScene, uv - px).rgb
                 + texture(uScene, uv + vec2(px.x, -px.y)).rgb
                 + texture(uScene, uv - vec2(px.x, -px.y)).rgb ) * 0.25;
-    vec3 soft2 = ( texture(uScene, uv + px * 2.0).rgb + texture(uScene, uv - px * 2.0).rgb ) * 0.5;
-    col = mix(col, mix(soft, soft2, bl * 0.5), bl);
+    col = mix(col, soft, bl);
   }
 
-  /* warm dim, strongest mid-envelope */
+  /* warm dim, strongest mid-envelope (slow, ~25s arc — unrelated to the
+     fast throb, so not part of the flashing complaint) */
   float env = n2oEnv();
   float mid = env * (1.0 - env) * 4.0;
   col *= mix(vec3(1.0), vec3(0.93, 0.87, 0.78), mid * 0.5 * smoothstep(0.2, 0.8, uIntensity));
 
-  /* Heavy: acuity fades toward a soft glow at LFO peaks — a slow-cresting
-     wave (wide, low exponent) rather than a strobing flash-cut, since a
-     sharp pow() spike at 2.5 Hz reads as literal flashing lights */
-  float wo = smoothstep(0.75, 1.0, uIntensity) * pow(max(th, 0.0), 1.2);
-  col = mix(col, vec3(1.05, 1.02, 0.96), wo * 0.38);
+  /* Heavy: a gentle glow at wave peaks — nowhere near whiteout. Rides the
+     same unified wave so it crests and fades with everything else. */
+  float wo = smoothstep(0.75, 1.0, uIntensity) * wave;
+  col = mix(col, vec3(1.05, 1.02, 0.96), wo * 0.18);
 
-  /* the geometry wall — builds through the envelope, strongest at LFO
-     peaks and only at higher doses */
-  float geomW = uSig_geometry * smoothstep(0.5, 1.0, uIntensity) * (0.30 + 0.70 * n2oEnv());
+  /* the geometry wall — builds through the envelope, strongest at
+     envelope peaks and only at higher doses (slow ~25s arc, not the
+     fast throb, so it doesn't contribute to flashing) */
+  float geomW = uSig_geometry * smoothstep(0.5, 1.0, uIntensity) * (0.30 + 0.70 * env);
   if (geomW > 0.004) {
     vec2 asp = vec2(uAspect, 1.0);
     vec2 p = (uv - 0.5) * asp;
@@ -98,10 +111,10 @@ vec3 sigColor(vec3 col, vec2 uv){
 }
 
 vec3 sigTemporal(vec3 col, vec2 uv){
-  /* flange: echo of the frame one throb period (0.4 s) ago */
+  /* flange: echo of the frame one throb period ago */
   float w = uSig_flange * smoothstep(0.15, 0.7, uIntensity) * n2oEnv();
   if (w > 0.004) {
-    vec3 echo = histSample(uv, 0.4);
+    vec3 echo = histSample(uv, 1.0 / N2O_HZ);
     col = mix(col, max(col, echo * 0.99), w * 0.5);
   }
   return col;
