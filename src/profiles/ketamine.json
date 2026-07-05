@@ -14,13 +14,13 @@
     "tracers":      {"curve": "early",  "max": 0.20},
     "ghosting":     {"curve": "smooth", "max": 0.40}
   },
-  "signatureParams": { "recession": 0.8, "flatten": 0.85, "kholeTunnel": 1.0, "verticalDouble": 0.9 },
+  "signatureParams": { "recession": 1.0, "flatten": 0.95, "kholeTunnel": 1.0, "verticalDouble": 1.1 },
   "tierNotes": [
     "Threshold: slight softness, nothing more (all curves smooth — nothing spikes early).",
     "Light: mild vertical doubling + painting-flattening begins; colors cool.",
     "Common: clear doubling, frame-hold stutter, desaturation toward gray-blue.",
     "Strong: world visibly shrinking inside a dark surround; tunnel forming (late vignette wakes).",
-    "Heavy: k-hole — small flat bright painting receding in darkness, heavy stutter."
+    "Heavy: full k-hole — scene collapses to a small, flat, contrast-crushed painting swimming in a near-black surround; doubling and stutter are extreme."
   ],
   "sources": ["psychonautwiki:ketamine", "psychonautwiki:visual-effects"]
 }

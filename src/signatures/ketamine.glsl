@@ -25,7 +25,7 @@ vec3 sigColor(vec3 col, vec2 uv){
   float inten = uIntensity;
 
   /* ---- world recession: sample a shrunk scene, dark around it ---- */
-  float rec = uSig_recession * smoothstep(0.35, 1.0, inten) * 0.30;
+  float rec = uSig_recession * smoothstep(0.30, 1.0, inten) * 0.42;
   vec2 ruv = (uv - 0.5) / max(1.0 - rec, 1e-3) + 0.5;
   /* soft box mask — inside the receding painting */
   vec2 bd = min(ruv, 1.0 - ruv);
@@ -33,7 +33,7 @@ vec3 sigColor(vec3 col, vec2 uv){
   vec2 suv = clamp(ruv, 0.0, 1.0);
 
   /* ---- vertical-divergence double vision ---- */
-  float voff = uSig_verticalDouble * (0.005 + 0.028 * smoothstep(0.12, 0.85, inten));
+  float voff = uSig_verticalDouble * (0.005 + 0.044 * smoothstep(0.12, 0.85, inten));
   vec3 scn = 0.5 * (texture(uScene, suv).rgb
                   + texture(uScene, clamp(suv + vec2(0.0, voff), 0.0, 1.0)).rgb);
 
@@ -44,12 +44,12 @@ vec3 sigColor(vec3 col, vec2 uv){
     vec3 flat5 = 0.5 * (kFlat(suv) + kFlat(clamp(suv + vec2(0.0, voff), 0.0, 1.0)));
     scn = mix(scn, flat5, flatW * (1.0 - em) * 0.85);
     /* local contrast crush — the "painting" look */
-    scn = mix(scn, vec3(0.5) + (scn - vec3(0.5)) * 0.70, flatW * 0.55);
+    scn = mix(scn, vec3(0.5) + (scn - vec3(0.5)) * 0.62, flatW * 0.65);
   }
 
   /* ---- dark cold surround; k-hole deepens it toward black ---- */
-  float hole = uSig_kholeTunnel * smoothstep(0.75, 1.0, inten);
-  vec3 surround = vec3(0.030, 0.034, 0.048) * (1.0 - hole * 0.85);
+  float hole = uSig_kholeTunnel * smoothstep(0.68, 1.0, inten);
+  vec3 surround = vec3(0.030, 0.034, 0.048) * (1.0 - hole * 0.95);
   return mix(surround, scn, inside);
 }
 
