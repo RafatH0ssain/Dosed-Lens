@@ -12,8 +12,8 @@
     "snow":         {"curve": "early",  "max": 0.25},
     "warmCast":     {"curve": "early",  "max": 0.20},
     "doubleVision": {"curve": "late",   "max": 0.40},
-    "patternMask":  {"curve": "late",   "max": 0.85},
-    "symmetry":     {"curve": "late",   "max": 0.30}
+    "patternMask":  {"curve": "late",   "max": 1.00},
+    "symmetry":     {"curve": "late",   "max": 0.45}
   },
   "signatureParams": { "sepiaGreen": 0.7, "blurWave": 0.8, "skitter": 0.9, "smoke": 0.7, "pareidolia": 0.8, "figureEvents": 0.8, "drift": 0.8, "heavyBreathe": 1.0 },
   "tierNotes": [
