@@ -15,8 +15,14 @@
              that wouldn't be accurate to the substance.
    Peripheral shadow events + Heavy silhouettes come from the particle
    layer (shadowEvents / silhouette params), which flee the mouse.
+   Also added (user feedback: Strong/Heavy needed more distortion, NOT
+   color/rainbow): a nervous, fast pattern-breathe on the image's own
+   edges/textures at Strong+ — PW documents "visual drifting... usually
+   subtle... delirious in nature" at elevated doses; kept fast/jittery
+   rather than a slow psychedelic swell so it reads as restless vigilance,
+   not a trip.
    Params: crawl, shadowEvents, silhouette, harshContrast, vibrate,
-   transform
+   transform, breathe
    sources: psychonautwiki:methamphetamine */
 
 /* rare "Transformations" gate — a brief, sparse window (~p=0.02/s, meant
@@ -45,6 +51,17 @@ vec2 sigWarp(vec2 uv){
     vec2 c1 = hash2(cell + (floor(ts) + 1.0) * 0.37);
     vec2 churn = mix(c0, c1, f * f * (3.0 - 2.0 * f));
     uv += churn * (2.4 / uRes) * flatness * w;
+  }
+
+  /* nervous pattern-breathe: fast, jittery structural pulse ON the edges/
+     textures themselves (opposite mask from crawl — this rides patterns,
+     crawl rides flat walls), Strong+ only */
+  float bw = uSig_breathe * smoothstep(0.5, 1.0, uIntensity);
+  if (bw > 0.004) {
+    vec2 tang = edgeTangent(uv);
+    float mag = edgeAt(uv).z;
+    float n = noise(uv * 3.2 + uTime * 0.65) - 0.5;
+    uv += tang * mag * n * bw * 0.011;
   }
   return uv;
 }
