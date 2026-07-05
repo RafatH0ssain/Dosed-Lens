@@ -64,10 +64,12 @@ vec3 kCubism(vec2 uv, float voff, float w){
   float ph1 = hash1(i1 * 9.1 + 2.0) * TAU;
   float br0 = 0.5 + 0.5 * sin(uTime * 0.22 + ph0);
   float br1 = 0.5 + 0.5 * sin(uTime * 0.22 + ph1);
-  vec2 off0 = (hash2(vec2(i0, 1.0)) - 0.5) * (0.008 + 0.014 * br0) * w;
-  vec2 off1 = (hash2(vec2(i1, 1.0)) - 0.5) * (0.008 + 0.014 * br1) * w;
-  float z0 = 1.0 + ((hash1(i0 * 2.0) - 0.5) * 0.032 + (br0 - 0.5) * 0.032) * w;
-  float z1 = 1.0 + ((hash1(i1 * 2.0) - 0.5) * 0.032 + (br1 - 0.5) * 0.032) * w;
+  /* distortion strengthened per user feedback ("just blurring and double
+     vision, not real patterns/distortion") */
+  vec2 off0 = (hash2(vec2(i0, 1.0)) - 0.5) * (0.016 + 0.026 * br0) * w;
+  vec2 off1 = (hash2(vec2(i1, 1.0)) - 0.5) * (0.016 + 0.026 * br1) * w;
+  float z0 = 1.0 + ((hash1(i0 * 2.0) - 0.5) * 0.06 + (br0 - 0.5) * 0.06) * w;
+  float z1 = 1.0 + ((hash1(i1 * 2.0) - 0.5) * 0.06 + (br1 - 0.5) * 0.06) * w;
 
   vec2 fuv0 = clamp((uv - 0.5) * z0 + 0.5 + off0, 0.0, 1.0);
   vec2 fuv1 = clamp((uv - 0.5) * z1 + 0.5 + off1, 0.0, 1.0);
@@ -75,15 +77,24 @@ vec3 kCubism(vec2 uv, float voff, float w){
      re-sample of a fine repeating texture (brick courses) at a slightly
      different zoom/offset per facet beats against itself and reads as a
      moiré "fence," not cubism — softening kills the interference while
-     keeping the panel displacement visible */
+     keeping the panel displacement visible. Blend ratio pulled back a
+     little (was 0.5) since the distortion itself was too faint to read. */
   vec3 c0 = mix(0.5 * (texture(uScene, fuv0).rgb
                       + texture(uScene, clamp(fuv0 + vec2(0.0, voff), 0.0, 1.0)).rgb),
-                kFlat(fuv0), 0.5);
+                kFlat(fuv0), 0.32);
   vec3 c1 = mix(0.5 * (texture(uScene, fuv1).rgb
                       + texture(uScene, clamp(fuv1 + vec2(0.0, voff), 0.0, 1.0)).rgb),
-                kFlat(fuv1), 0.5);
+                kFlat(fuv1), 0.32);
   c0 = hueRot(c0, ((hash1(i0 * 2.0) - 0.5) * 0.30 + (br0 - 0.5) * 0.15) * w);
   c1 = hueRot(c1, ((hash1(i1 * 2.0) - 0.5) * 0.30 + (br1 - 0.5) * 0.15) * w);
+
+  /* a genuine pattern, not just a re-sampled photo: a soft, slow-drifting
+     glossy sheen band per facet ("glossy in shading" per PW), a low-
+     frequency interference stripe that breathes with the same phase */
+  float sheen0 = sin(dot(uv, vec2(6.0, 5.0)) + ph0 * 1.3 + uTime * 0.12) * 0.5 + 0.5;
+  float sheen1 = sin(dot(uv, vec2(6.0, 5.0)) + ph1 * 1.3 + uTime * 0.12) * 0.5 + 0.5;
+  c0 += pow(sheen0, 5.0) * 0.10 * w * vec3(0.6, 0.7, 0.85);
+  c1 += pow(sheen1, 5.0) * 0.10 * w * vec3(0.6, 0.7, 0.85);
 
   /* wide, soft cross-fade between only the two closest facets — no hard
      seam anywhere in the frame */
@@ -97,9 +108,13 @@ vec3 sigColor(vec3 col, vec2 uv){
   /* ---- world recession: sample a shrunk scene, dark around it ---- */
   float rec = uSig_recession * smoothstep(0.30, 1.0, inten) * 0.42;
   vec2 ruv = (uv - 0.5) / max(1.0 - rec, 1e-3) + 0.5;
-  /* soft box mask — inside the receding painting */
-  vec2 bd = min(ruv, 1.0 - ruv);
-  float inside = smoothstep(-0.015, 0.02, min(bd.x, bd.y));
+  /* rounded mask — user feedback: the receding painting's hard rectangular
+     corners should be rounded off. A superellipse (squircle) softens the
+     corners into a curve while staying mostly rectangular in the middle
+     of each edge, rather than a full oval/porthole. */
+  vec2 rc = (ruv - 0.5) * 2.0;
+  float superell = pow(abs(rc.x), 4.0) + pow(abs(rc.y), 4.0);
+  float inside = smoothstep(1.06, 0.90, superell);
   vec2 suv = clamp(ruv, 0.0, 1.0);
 
   /* ---- vertical-divergence double vision ---- */
@@ -119,10 +134,10 @@ vec3 sigColor(vec3 col, vec2 uv){
 
   /* ---- environmental cubism / scenery slicing: Strong+ only, PW's own
      documented ketamine geometry, distinct from a psychedelic fractal ---- */
-  float cubW = uSig_cubism * smoothstep(0.55, 1.0, inten);
+  float cubW = uSig_cubism * smoothstep(0.5, 1.0, inten);
   if (cubW > 0.004) {
     vec3 cub = kCubism(suv, voff, cubW);
-    scn = mix(scn, cub, cubW * 0.65);
+    scn = mix(scn, cub, cubW * 0.85);
   }
 
   /* ---- dark cold surround; k-hole deepens it toward black ---- */
