@@ -18,11 +18,17 @@
    0.55 Hz, a good two-second breath), while the WARP (pure zoom-breathing,
    no luminance/contrast change at all, so it cannot read as "flashing")
    carries most of the felt intensity instead.
-   sigWarp:     the dominant carrier now — real, larger zoom-breathing
+   sigWarp:     the dominant carrier now — real, larger zoom-breathing,
+                plus (user feedback) a geometry-gradient spatial distortion
+                at Strong+ so the rings actually displace the image rather
+                than only tinting it, and a bespoke double vision tied to
+                the SAME wave phase (smoother than the generic shared
+                doubleVision, which oscillates on its own asynchronous
+                0.3 Hz clock and could beat oddly against this wave)
    sigColor:    luminance + blur + glow all riding the SAME wave phase, but
                 each cut to a small fraction of what they were
    sigTemporal: flange — blend the history ring one throb period back
-   Params: throb, envelope, flange
+   Params: throb, envelope, flange, geomDistort, diplopia
    sources: psychonautwiki:nitrous-oxide */
 
 const float N2O_HZ = 0.55;
@@ -65,11 +71,38 @@ vec2 sigWarp(vec2 uv){
      "flashing" no matter how large — this is where the felt intensity
      should live instead of in the color channel. */
   float s = 1.0 + n2oWave() * 0.085;
-  return (uv - 0.5) / s + 0.5;
+  uv = (uv - 0.5) / s + 0.5;
+
+  /* Strong+: the geometry field now visibly displaces the image instead
+     of only tinting it — real spatial "psychedelic" distortion, riding
+     the slow envelope so it breathes in rather than snapping on */
+  float distW = uSig_geomDistort * smoothstep(0.5, 1.0, uIntensity) * (0.3 + 0.7 * n2oEnv());
+  if (distW > 0.004) {
+    vec2 asp = vec2(uAspect, 1.0);
+    vec2 p = (uv - 0.5) * asp;
+    float e = 0.015;
+    float gx = n2oGeom(p + vec2(e, 0.0)) - n2oGeom(p - vec2(e, 0.0));
+    float gy = n2oGeom(p + vec2(0.0, e)) - n2oGeom(p - vec2(0.0, e));
+    vec2 grad = vec2(gx, gy) / (2.0 * e);
+    uv += vec2(grad.x / uAspect, grad.y) * distW * 0.010;
+  }
+  return uv;
 }
 
 vec3 sigColor(vec3 col, vec2 uv){
   float wave = n2oWave(); /* 0..1, single shared phase for everything below */
+
+  /* double vision — tied to the SAME wave phase as everything else so it
+     grows/fades in sync rather than as an independent, asynchronous
+     oscillation. Replaces the generic shared doubleVision param, whose
+     own 0.3 Hz clock could beat unpredictably against this wave and read
+     as an abrupt, uncorrelated jump rather than a smooth transition. */
+  float dv = uSig_diplopia * smoothstep(0.3, 0.85, uIntensity) * (0.25 + 0.75 * wave);
+  if (dv > 0.004) {
+    float off = dv * 0.020;
+    vec3 dvSample = texture(uScene, clamp(uv + vec2(off, 0.0), 0.0, 1.0)).rgb;
+    col = mix(col, mix(col, dvSample, 0.5), min(dv * 1.6, 1.0));
+  }
 
   /* luminance — barely-there now; the warp carries the throb instead */
   col *= 1.0 + (wave - 0.5) * 0.10;
