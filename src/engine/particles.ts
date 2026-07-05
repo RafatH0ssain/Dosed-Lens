@@ -98,10 +98,14 @@ void main(){
     a = smoothstep(1.0, 0.35, d);
     col = vec3(0.03, 0.03, 0.02);
   } else if (vType < 1.5) {
-    /* smoke: wispy translucent gray */
-    float n = noise(vLuv * 2.4 + vSeed * 17.0 + uTime * 0.12)
-            + 0.5 * noise(vLuv * 5.1 - uTime * 0.07 + vSeed * 31.0);
-    a = smoothstep(1.0, 0.15, d) * smoothstep(-0.35, 0.55, n) * 0.30;
+    /* smoke: wispy translucent gray — layered octaves + a warped, non-
+       circular falloff so it billows like real smoke instead of reading
+       as a soft circular sprite */
+    float n = noise(vLuv * 2.4 + vSeed * 17.0 + uTime * 0.10)
+            + 0.5 * noise(vLuv * 5.1 - uTime * 0.06 + vSeed * 31.0)
+            + 0.28 * noise(vLuv * 1.3 + vSeed * 5.0 + uTime * 0.04);
+    float dWarp = d + 0.22 * noise(vLuv * 1.6 + vSeed * 11.0);
+    a = smoothstep(1.05, 0.05, dWarp) * smoothstep(-0.30, 0.60, n) * 0.34;
     col = vec3(0.42, 0.42, 0.44);
   } else {
     /* humanoid silhouette: head circle + body capsule, heavy soft edge */
@@ -294,17 +298,21 @@ export class ParticleLayer {
     if (cfg.smoke > 0.01) {
       let smokeCount = 0;
       for (const p of this.pool) if (p.alive && p.type === TYPE_SMOKE) smokeCount++;
-      if (smokeCount < 30 && Math.random() < cfg.smoke * 1.2 * dt) {
+      // 0 at the smoke-wake threshold -> 1 near max weight: widens coverage,
+      // count, and size toward Heavy instead of a fixed small upper band
+      const heavyT = Math.min(1, cfg.smoke / 0.6);
+      const cap = 30 + Math.round(20 * heavyT);
+      if (smokeCount < cap && Math.random() < cfg.smoke * (1.2 + 1.4 * heavyT) * dt) {
         const p = this.spawn();
         if (p) {
           p.type = TYPE_SMOKE;
-          p.x = 0.15 + Math.random() * 0.7;
-          p.y = 0.05 + Math.random() * 0.35;
-          p.size = 60 + Math.random() * 80;
-          p.alpha = 0.5;
-          p.ttl = 8 + Math.random() * 6;
+          p.x = (0.15 - 0.13 * heavyT) + Math.random() * (0.7 + 0.30 * heavyT);
+          p.y = (0.05 - 0.03 * heavyT) + Math.random() * (0.35 + 0.40 * heavyT);
+          p.size = (60 + 50 * heavyT) + Math.random() * (80 + 70 * heavyT);
+          p.alpha = 0.5 + 0.20 * heavyT;
+          p.ttl = 9 + Math.random() * (6 + 5 * heavyT);
           p.vx = (Math.random() - 0.5) * 0.008;
-          p.vy = 0.006 + Math.random() * 0.008;
+          p.vy = 0.005 + Math.random() * 0.007;
         }
       }
     }
@@ -364,6 +372,12 @@ export class ParticleLayer {
           p.vx *= Math.exp(-6 * dt);
           p.vy *= Math.exp(-6 * dt);
         }
+      } else if (p.type === TYPE_SMOKE) {
+        // gentle wafting curl instead of a straight-line drift, so wisps
+        // billow/curl rather than sliding across the frame like a sprite
+        const curl = Math.sin(p.age * 0.22 + p.seed) * 0.0055;
+        p.vx += curl * dt;
+        p.vx *= Math.exp(-0.6 * dt);
       }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
