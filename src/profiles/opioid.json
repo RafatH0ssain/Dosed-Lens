@@ -10,7 +10,8 @@
     "tracers":      {"curve": "smooth", "max": 0.45},
     "desat":        {"curve": "early",  "max": 0.20},
     "bloom":        {"curve": "smooth", "max": 0.35},
-    "doubleVision": {"curve": "late",   "max": 0.40}
+    "doubleVision": {"curve": "late",   "max": 0.40},
+    "patternMask":  {"curve": "late",   "max": 0.45}
   },
   "signatureParams": { "nodDepth": 0.9, "nodRate": 0.7, "goldenCast": 0.8, "pinhole": 0.85, "dreamImagery": 0.8, "sway": 0.85 },
   "tierNotes": [
@@ -18,7 +19,7 @@
     "Light: dimming + the first shallow nod per minute.",
     "Common: regular nod cycle — lid descends, blur and darkening ramp, snap back; pinholing visible.",
     "Strong: deep nods to 90% black, heavy lids, syrupy tracers; uncontrolled refocus/double vision wakes up (late curve) — PsychonautWiki: eyes 'un-focus and re-focus uncontrollably... present no matter where one focuses.' The image's own edges/patterns and the pinhole boundary begin a slow, languid breathe/sway (user feedback) — dreamy, not nervous.",
-    "Heavy: near-continuous nodding with seconds of black; motion slowed throughout; constant double vision; the whole frame and its pinhole boundary sway/breathe noticeably; at the deepest point of each nod, soft warm hypnagogic dream imagery briefly surfaces in the blackout (PsychonautWiki: nodding 'often accompanied by vivid dream-like visions') before the snap resets it."
+    "Heavy: near-continuous nodding with seconds of black; motion slowed throughout; constant double vision; the whole frame and its pinhole boundary sway/breathe noticeably, now joined by a genuine organic form-constant pattern (patternMask, late curve) riding the scene's own texture — it passes through the same warm golden-cast pipeline as everything else, so it reads as part of the warm dream rather than a rainbow overlay; at the deepest point of each nod, soft warm hypnagogic dream imagery briefly surfaces in the blackout (PsychonautWiki: nodding 'often accompanied by vivid dream-like visions') before the snap resets it."
   ],
   "sources": ["psychonautwiki:opioids", "psychonautwiki:visual-effects"]
 }
