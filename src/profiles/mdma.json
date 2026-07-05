@@ -4,22 +4,25 @@
   "class": "entactogen",
   "warning": null,
   "shared": {
-    "starbursts":   {"curve": "early",  "max": 0.90},
-    "bloom":        {"curve": "smooth", "max": 0.70},
-    "colorSat":     {"curve": "early",  "max": 0.80},
+    "starbursts":   {"curve": "early",  "max": 1.00},
+    "bloom":        {"curve": "smooth", "max": 0.90},
+    "colorSat":     {"curve": "early",  "max": 0.95},
     "warmCast":     {"curve": "smooth", "max": 0.40},
     "jitter":       {"curve": "spike",  "max": 0.70},
-    "doubleVision": {"curve": "late",   "max": 0.35},
-    "scintilla":    {"curve": "smooth", "max": 0.50},
-    "snow":         {"curve": "early",  "max": 0.15}
+    "doubleVision": {"curve": "late",   "max": 0.50},
+    "scintilla":    {"curve": "smooth", "max": 0.55},
+    "snow":         {"curve": "early",  "max": 0.15},
+    "patternMask":  {"curve": "late",   "max": 0.22},
+    "symmetry":     {"curve": "late",   "max": 0.15},
+    "sharpenHalo":  {"curve": "early",  "max": 0.22}
   },
-  "signatureParams": { "starRays": 0.8, "magenta": 0.7, "shimmer": 0.6, "nystagmus": 0.9, "shadowFlicker": 0.3 },
+  "signatureParams": { "starRays": 0.9, "magenta": 0.85, "shimmer": 0.7, "nystagmus": 0.55, "shadowFlicker": 0.3 },
   "tierNotes": [
-    "Threshold: lights slightly juicier — halos a touch wider than the lens should give.",
+    "Threshold: lights slightly juicier — halos a touch wider than the lens should give; faint pattern-recognition lift (early sharpenHalo).",
     "Light: clear halos + magenta-leaning warmth.",
-    "Common: starbursts on every light source + first episodic eye-wiggle bursts (spike-curve jitter — bursts, never constant).",
-    "Strong: constant fine shimmer on bright regions, strong frequent wiggle.",
-    "Heavy: doubled starbursts (late doubleVision), judder, peripheral shadow-flicker at low weight."
+    "Common: starbursts on every light source + first episodic eye-wiggle bursts, eased in and out rather than snapping (spike-curve jitter — bursts, never constant).",
+    "Strong: constant fine shimmer on bright regions, frequent soft wiggle; a faint dim monotone blue-grey geometric hint starts riding textures (patternMask/symmetry, low weight, psilocin-like rather than LSD-like per PsychonautWiki).",
+    "Heavy: doubled starbursts (late doubleVision), stronger contrast/color lift so the bloom stack peaks properly, soft judder, peripheral shadow-flicker at low weight, the faint geometry hint fully present but still just a hint."
   ],
   "sources": ["psychonautwiki:mdma", "psychonautwiki:visual-effects"]
 }
