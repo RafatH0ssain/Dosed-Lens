@@ -14,13 +14,13 @@
     "tracers":      {"curve": "early",  "max": 0.20},
     "ghosting":     {"curve": "smooth", "max": 0.40}
   },
-  "signatureParams": { "recession": 1.0, "flatten": 0.95, "kholeTunnel": 1.0, "verticalDouble": 0.85, "cubism": 0.9 },
+  "signatureParams": { "recession": 1.0, "flatten": 0.95, "kholeTunnel": 1.0, "verticalDouble": 0.85, "cubism": 0.9, "dissolve": 0.9 },
   "tierNotes": [
     "Threshold: slight softness, nothing more (all curves smooth — nothing spikes early).",
     "Light: mild vertical doubling (toned down a notch per feedback) + painting-flattening begins; colors cool.",
     "Common: doubling, frame-hold stutter, desaturation toward gray-blue; by upper-Common, environmental cubism/scenery-slicing has already woken up (moved earlier per user feedback) — the painting starts looking assembled from large, softly-bounded, faintly mismatched glossy panels (PsychonautWiki's own documented ketamine geometry, milder and less intricate than a psychedelic fractal), now with a stable 9-tap wide-average (was 4-tap, which shimmered/aliased against fine texture as the facet breathing slowly drifted the sample point — that's what read as 'jittery/vibrating').",
     "Strong: world visibly shrinking inside a dark surround; tunnel forming (late vignette wakes); cubism fully readable, including a growing loss of the hard-edge protection that used to keep mortar lines/object outlines fully crisp against the swimming rest of the painting.",
-    "Heavy: full k-hole — scene collapses to a small (recession pushed further per feedback — the black surround now eats significantly more of the frame), flat, contrast-crushed painting swimming in a near-black surround with genuinely rounded corners (superellipse mask, not a hard rectangle); doubling and stutter are extreme; the panel-slicing is fully present, slowly turning, multicoloured and glossy, edges included."
+    "Heavy: full k-hole — scene collapses to a small (recession pushed further per feedback — the black surround now eats significantly more of the frame), flat, contrast-crushed painting swimming in a near-black surround with genuinely rounded corners (superellipse mask, not a hard rectangle); doubling and stutter are extreme. Above ~0.8 the photographic content itself dissolves — each panel's remaining photo trace gives way to a shimmering, slowly breathing synthetic colour field seeded from the photo's own dominant palette (user feedback: 'make the image disappear in patterns and shimmers and breathing at heavy') — the image is genuinely gone by full Heavy, replaced by soft breathing/shimmering blobs of its own colour, never a tunnel or fractal."
   ],
   "sources": ["psychonautwiki:ketamine", "psychonautwiki:visual-effects"]
 }

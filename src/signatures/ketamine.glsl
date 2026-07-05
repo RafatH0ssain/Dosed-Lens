@@ -23,7 +23,10 @@
        LSD/DMT — flat, geometric, dim, low-complexity, never fractal or
        rainbow-saturated.
    Shared params supply stutter, desat, cool cast, late tunnel vignette.
-   Params: recession, flatten, kholeTunnel, verticalDouble, cubism
+   Heavy-only "dissolve": user feedback asked for the image to visibly
+   disappear into pattern/shimmer/breathing at Heavy, not just facet — see
+   kShimmer below.
+   Params: recession, flatten, kholeTunnel, verticalDouble, cubism, dissolve
    sources: psychonautwiki:ketamine */
 
 vec2 sigWarp(vec2 uv){ return uv; }
@@ -70,6 +73,26 @@ vec3 kFlatWide(vec2 uv, float r){
    "algorithmic... synthetic... simplistic in complexity" by making each
    facet mostly a wide flat average of itself (kFlatWide) rather than a
    sharp resample, lightly posterized. */
+/* Heavy dissolve — user feedback: "make the image disappear in patterns
+   and shimmers and breathing at heavy." Above ~0.8 intensity, each
+   facet's remaining photographic content is progressively replaced by a
+   shimmering, slowly breathing synthetic colour field built from the
+   facet's own flat-shaded colour and the photo's overall dominant
+   palette (uSeedCol) — the picture is genuinely gone at full Heavy, not
+   just faceted, but it stays in ketamine's own soft-blob/flat-shaded
+   language rather than borrowing DMT's tunnel or LSD's fractal. */
+vec3 kShimmer(vec2 p, float ph, vec3 baseCol){
+  float n1 = fbm(p * 1.4 + ph * 3.0 + uTime * 0.09);
+  float n2 = fbm(p * 2.6 - ph * 2.0 - uTime * 0.06);
+  float shimmer = 0.5 + 0.5 * sin((n1 + n2) * 7.0 + uTime * 0.7 + ph * 4.0);
+  vec3 seedA = mix(uSeedCol[0].rgb, uSeedCol[1].rgb, 0.5 + 0.5 * sin(ph));
+  vec3 seedB = mix(uSeedCol[2].rgb, uSeedCol[3].rgb, 0.5 + 0.5 * cos(ph));
+  vec3 palette = mix(seedA, seedB, shimmer);
+  vec3 col = mix(baseCol, palette, 0.7);
+  float breathe = 0.55 + 0.45 * sin(uTime * 0.15 + ph * 1.6);
+  return col * breathe;
+}
+
 vec3 kCubism(vec2 uv, float voff, float w){
   vec2 asp = vec2(uAspect, 1.0);
   vec2 p = uv * asp;
@@ -109,9 +132,11 @@ vec3 kCubism(vec2 uv, float voff, float w){
   vec3 flat1 = kFlatWide(fuv1, 26.0);
 
   /* mostly the wide flat average — the "synthetic/low-complexity" read —
-     with a bit of the photo underneath so it doesn't go fully abstract */
-  vec3 c0 = mix(photo0, flat0, 0.55 + 0.35 * w);
-  vec3 c1 = mix(photo1, flat1, 0.55 + 0.35 * w);
+     with a little of the photo underneath at low-mid tiers, fading to
+     (almost) none by Heavy so the dissolve below has nothing photographic
+     left to fight */
+  vec3 c0 = mix(photo0, flat0, 0.55 + 0.42 * w);
+  vec3 c1 = mix(photo1, flat1, 0.55 + 0.42 * w);
 
   /* light posterize — "algorithmic... simplistic in complexity" — blended
      in rather than a full replace, so it reads as quantized shading, not
@@ -131,6 +156,13 @@ vec3 kCubism(vec2 uv, float voff, float w){
 
   c0 = hueRot(c0, ((hash1(i0 * 2.0) - 0.5) * 0.30 + (br0 - 0.5) * 0.15) * w);
   c1 = hueRot(c1, ((hash1(i1 * 2.0) - 0.5) * 0.30 + (br1 - 0.5) * 0.15) * w);
+
+  /* Heavy dissolve: the image disappears into shimmer/breathing */
+  float dissolveW = uSig_dissolve * smoothstep(0.80, 1.0, uIntensity);
+  if (dissolveW > 0.004) {
+    c0 = mix(c0, kShimmer(p, ph0, c0), dissolveW);
+    c1 = mix(c1, kShimmer(p, ph1, c1), dissolveW);
+  }
 
   /* wide, soft cross-fade between only the two closest facets — no hard
      seam anywhere in the frame */
@@ -179,7 +211,11 @@ vec3 sigColor(vec3 col, vec2 uv){
   float cubW = uSig_cubism * smoothstep(0.35, 0.85, inten);
   if (cubW > 0.004) {
     vec3 cub = kCubism(suv, voff, cubW);
-    scn = mix(scn, cub, cubW * 0.85);
+    /* extra push at Heavy so the dissolved/shimmering result isn't
+       diluted back with the un-dissolved photo underneath — the point is
+       for the image to actually disappear, not just mostly */
+    float finalBlend = min(cubW * 0.85 + smoothstep(0.8, 1.0, inten) * 0.15, 0.98);
+    scn = mix(scn, cub, finalBlend);
   }
 
   /* ---- dark cold surround; k-hole deepens it toward black ---- */
