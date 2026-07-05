@@ -2,10 +2,33 @@
    the corners"
    sigWarp:  texture crawl — granular 1–2 px churn ONLY where edge
              magnitude is low (flat walls crawl, objects hold still)
-   sigColor: harsh local contrast on top of the shared unsharp/desat/snow
+   sigColor: harsh local contrast on top of the shared unsharp/desat/snow;
+             plus two effects added per PsychonautWiki research (meth's own
+             page explicitly does NOT document visual snow/tracers/
+             geometry as intrinsic effects — those stay purely from the
+             general VSS statistics used for `snow` — but it DOES document
+             "vibrating vision": eyeballs "spontaneously wiggle back and
+             forth in rapid motion" at high doses, and rare
+             "Transformations" (misreading one object as another) during
+             extended wakefulness/high doses. Both give Strong/Heavy a more
+             restless, chaotic feel without inventing psychedelic geometry
+             that wouldn't be accurate to the substance.
    Peripheral shadow events + Heavy silhouettes come from the particle
    layer (shadowEvents / silhouette params), which flee the mouse.
-   Params: crawl, shadowEvents, silhouette, harshContrast */
+   Params: crawl, shadowEvents, silhouette, harshContrast, vibrate,
+   transform
+   sources: psychonautwiki:methamphetamine */
+
+/* rare "Transformations" gate — a brief, sparse window (~p=0.02/s, meant
+   to be used already scaled to Heavy-only outside) where a high-edge
+   region gets a brief spatial mis-sample, like an object looked wrong for
+   an instant */
+float methTransformGate(){
+  float slot = floor(uTime);
+  float has = step(1.0 - 0.022, hash1(slot * 5.19));
+  float tIn = fract(uTime);
+  return has * smoothstep(0.0, 0.05, tIn) * (1.0 - smoothstep(0.18, 0.30, tIn));
+}
 
 vec2 sigWarp(vec2 uv){
   float w = uSig_crawl * smoothstep(0.3, 0.85, uIntensity);
@@ -45,6 +68,29 @@ vec3 sigColor(vec3 col, vec2 uv){
   float e = smoothstep(0.05, 0.25, edgeAt(uv).z);
   float shim = hash12(floor(gl_FragCoord.xy / 2.0) + floor(uTime * 18.0) * 3.1) - 0.5;
   col += shim * e * w * 0.14;
+
+  /* vibrating vision: "eyeballs spontaneously wiggle back and forth in
+     rapid motion" at high doses — a fast, constant (not bursty) small
+     double-image blur, distinct from MDMA's episodic nystagmus bursts */
+  float vib = uSig_vibrate * smoothstep(0.55, 1.0, uIntensity);
+  if (vib > 0.004) {
+    float d = sin(uTime * TAU * 13.0) * 0.0026 * vib;
+    vec3 v2 = texture(uScene, uv + vec2(d, 0.0)).rgb;
+    col = mix(col, (col + v2) * 0.5, vib * 0.7);
+  }
+
+  /* rare Transformations — Heavy only, sparse, a high-edge region briefly
+     mis-samples a nearby patch of itself: the uncanny "that looked like
+     something else for a second" read, not a screen-space glitch */
+  float tf = methTransformGate() * uSig_transform * smoothstep(0.85, 1.0, uIntensity);
+  if (tf > 0.004) {
+    float em = smoothstep(0.10, 0.30, edgeAt(uv).z);
+    if (em > 0.01) {
+      vec2 shift = (hash2(floor(uv * 5.0)) - 0.5) * 0.09;
+      vec3 alt = texture(uScene, clamp(uv + shift, 0.0, 1.0)).rgb;
+      col = mix(col, alt, tf * 0.55 * em);
+    }
+  }
 
   return col;
 }
