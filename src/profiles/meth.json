@@ -12,12 +12,12 @@
     "aberration":  {"curve": "early",  "max": 0.38},
     "vignette":    {"curve": "late",   "max": 0.10}
   },
-  "signatureParams": { "crawl": 0.85, "shadowEvents": 0.9, "silhouette": 0.7, "harshContrast": 1.0, "vibrate": 0.8, "transform": 0.6, "breathe": 0.8 },
+  "signatureParams": { "crawl": 0.85, "shadowEvents": 0.9, "silhouette": 0.7, "harshContrast": 1.0, "vibrate": 0.8, "transform": 0.6, "breathe": 1.0 },
   "tierNotes": [
     "Threshold: extra crispness — the over-sharpened vigilant look (early sharpenHalo); snow near-deniable (VSS density is quadratic in weight).",
     "Light: fine visual snow appears on flat surfaces — sparse salt-and-pepper specks shimmering at a fixed ~14 Hz, not per-frame static.",
     "Common: slow granular texture-crawl in FLAT regions only (edges/objects hold still) + first peripheral shadow blobs that emerge from the scene's own dark, high-contrast corners and vanish when the mouse (gaze) approaches.",
-    "Strong: frequent image-driven shadow events, harsh contrast, cold desaturation, denser snow, plus 'vibrating vision' waking up (fast constant eye-wiggle blur) and a nervous fast pattern-breathe on edges/textures — real structural distortion, deliberately fast/jittery rather than a slow psychedelic swell, so it stays restless/wired rather than trippy.",
+    "Strong: frequent image-driven shadow events, harsh contrast, cold desaturation, denser snow, plus 'vibrating vision' waking up (fast constant eye-wiggle blur) and a nervous fast pattern-breathe on edges/textures, strong enough to be unmistakable — real structural distortion, deliberately fast/jittery rather than a slow psychedelic swell, so it stays restless/wired rather than trippy.",
     "Heavy: rare humanoid silhouettes (p≈0.025/s, Heavy only) against whichever frame edge is darker; constant crawl + strong pattern-breathe on every edge in the frame; full salt-and-pepper snowstorm; strong vibrating-vision blur; rare 'Transformations' flicker (p≈0.02/s, Heavy only) where a high-edge object briefly mis-samples itself. Deliberately NOT psychedelic geometry/rainbow — PsychonautWiki's meth page doesn't document those as intrinsic effects."
   ],
   "sources": ["psychonautwiki:methamphetamine", "psychonautwiki:stimulant-psychosis", "psychonautwiki:visual-effects", "damiano-gervasi-2025-vss"]

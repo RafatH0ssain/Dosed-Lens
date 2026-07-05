@@ -55,13 +55,18 @@ vec2 sigWarp(vec2 uv){
 
   /* nervous pattern-breathe: fast, jittery structural pulse ON the edges/
      textures themselves (opposite mask from crawl — this rides patterns,
-     crawl rides flat walls), Strong+ only */
-  float bw = uSig_breathe * smoothstep(0.5, 1.0, uIntensity);
+     crawl rides flat walls). Strengthened per user feedback (v1 was too
+     weak to read) — wakes up earlier, much higher amplitude, and layers a
+     second faster octave so it reads as restless bristling rather than a
+     single gentle sway. */
+  float bw = uSig_breathe * smoothstep(0.35, 0.9, uIntensity);
   if (bw > 0.004) {
     vec2 tang = edgeTangent(uv);
     float mag = edgeAt(uv).z;
-    float n = noise(uv * 3.2 + uTime * 0.65) - 0.5;
-    uv += tang * mag * n * bw * 0.011;
+    float n1 = noise(uv * 3.2 + uTime * 0.65) - 0.5;
+    float n2 = noise(uv * 7.0 - uTime * 1.3) - 0.5;
+    float n = n1 * 0.7 + n2 * 0.5;
+    uv += tang * (0.4 + 0.6 * mag) * n * bw * 0.034;
   }
   return uv;
 }
