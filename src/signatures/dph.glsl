@@ -1,16 +1,42 @@
 /* DPH / deliriant — "not colorful — *wrong*. Spiders in the corners and
    smoke in the room" ⚠ gated
-   No geometry warp, no rainbow — deliberately. The wrongness is tonal
-   and peripheral:
+   No fractal/kaleidoscope geometry, no rainbow — deliberately. The
+   wrongness is tonal, peripheral, and — per PsychonautWiki — genuinely
+   structural: real anticholinergic reports include "drifting (melting,
+   breathing, morphing, flowing)... intricate yet faint, jittery and
+   flexible in motion, static in permanence, realistic in believability"
+   and double vision at moderate-heavy doses. sigWarp was previously a
+   no-op, which is why the image read as an unchanged overlay — this
+   fixes that with a faint, structure-driven drift (edge-tangent, like
+   LSD's, but far subtler/higher-frequency and colorless) rather than any
+   pattern or lattice.
    sigColor:    darken, sickly sepia-green cast, slow 0.1 Hz blur *waves*
    sigTemporal: shadow pareidolia — in the darkest image regions, barely-
                 visible faces fade in and dissolve when the mouse (gaze)
                 approaches
    Skitter clusters, smoke wisps, and the Heavy "someone standing there"
    figure events live in the CPU particle layer.
-   Params: sepiaGreen, blurWave, skitter, smoke, pareidolia, figureEvents */
+   Params: sepiaGreen, blurWave, skitter, smoke, pareidolia, figureEvents,
+   drift
+   sources: psychonautwiki:diphenhydramine */
 
-vec2 sigWarp(vec2 uv){ return uv; }
+vec2 sigWarp(vec2 uv){
+  float w = uSig_drift * smoothstep(0.12, 0.85, uIntensity);
+  if (w > 0.004) {
+    vec2 tang = edgeTangent(uv);
+    float mag = edgeAt(uv).z;
+    /* slow organic wobble along the structure — "faint... realistic in
+       believability", never a smooth LSD-style flow */
+    float slow = fbm(uv * 4.0 + uTime * 0.045) - 0.5;
+    uv += tang * mag * slow * w * 0.0075;
+    /* fine, fast jitter — "jittery and flexible in motion" — independent
+       of edges so it also touches flat regions faintly */
+    vec2 j = vec2(hash12(floor(uv * uRes * 0.5) + floor(uTime * 10.0) * 1.7) - 0.5,
+                  hash12(floor(uv * uRes * 0.5) + floor(uTime * 10.0) * 2.3) - 0.5);
+    uv += j * w * 0.0016;
+  }
+  return uv;
+}
 
 vec3 sigColor(vec3 col, vec2 uv){
   float w = smoothstep(0.1, 0.75, uIntensity);
