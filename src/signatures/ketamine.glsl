@@ -6,8 +6,20 @@
      · vertical-divergence double vision on the receded image
      · painting-flattening — blur where edge magnitude is low, keep strong
        edges; local contrast crush
+     · environmental cubism / scenery slicing — user feedback: Heavy read
+       as "just smaller and shaky." PsychonautWiki documents real
+       high-dose ketamine geometry distinct from psychedelics'
+       fractal/kaleidoscope symmetry: "environmental cubism," "environmental
+       orbism," "scenery slicing," characterized as "simplistic in
+       complexity, algorithmic... synthetic... dimly lit... multicoloured...
+       glossy... soft in edges... large in size... smooth in motion" (and
+       explicitly milder/less intricate than psychedelic geometry). Modeled
+       as a handful of large, softly-bounded panels the painting seems
+       assembled from, each independently re-sampled/tinted/glossy — the
+       world looks sliced into slightly-disagreeing facets, not warped.
    Shared params supply stutter, desat, cool cast, late tunnel vignette.
-   Params: recession, flatten, kholeTunnel, verticalDouble */
+   Params: recession, flatten, kholeTunnel, verticalDouble, cubism
+   sources: psychonautwiki:ketamine */
 
 vec2 sigWarp(vec2 uv){ return uv; }
 
@@ -19,6 +31,30 @@ vec3 kFlat(vec2 uv){
   acc += texture(uScene, uv + vec2( px.x, -px.y)).rgb * 0.2;
   acc += texture(uScene, uv + vec2(-px.x, -px.y)).rgb * 0.2;
   return acc;
+}
+
+/* environmental cubism / scenery slicing: large soft glossy facets the
+   painting seems built from, slowly turning — "large in size, soft in
+   edges, smooth in motion," never a sharp fractal cut */
+vec3 kCubism(vec2 uv, float voff, float w){
+  vec2 asp = vec2(uAspect, 1.0);
+  vec2 p = uv * asp * 2.2;
+  p = rot2(p, uTime * 0.012);
+  vec2 cell = floor(p);
+  vec2 f = fract(p);
+  float h = hash1(dot(cell, vec2(12.9898, 78.233)) + 4.0);
+  vec2 facetOff = (hash2(cell + 5.1) - 0.5) * 0.026 * w;
+  float facetZoom = 1.0 + (h - 0.5) * 0.07 * w;
+  vec2 fuv = clamp((uv - 0.5) * facetZoom + 0.5 + facetOff, 0.0, 1.0);
+  vec3 fcol = 0.5 * (texture(uScene, fuv).rgb
+                    + texture(uScene, clamp(fuv + vec2(0.0, voff), 0.0, 1.0)).rgb);
+  /* multicoloured, glossy: a gentle per-facet hue turn + soft sheen */
+  fcol = hueRot(fcol, (h - 0.5) * 0.4 * w);
+  float distToEdge = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
+  float seam = 1.0 - smoothstep(0.0, 0.11, distToEdge);
+  fcol *= 1.0 - seam * 0.20 * w;
+  fcol += seam * w * 0.06 * vec3(0.55, 0.68, 0.85);
+  return fcol;
 }
 
 vec3 sigColor(vec3 col, vec2 uv){
@@ -45,6 +81,14 @@ vec3 sigColor(vec3 col, vec2 uv){
     scn = mix(scn, flat5, flatW * (1.0 - em) * 0.85);
     /* local contrast crush — the "painting" look */
     scn = mix(scn, vec3(0.5) + (scn - vec3(0.5)) * 0.62, flatW * 0.65);
+  }
+
+  /* ---- environmental cubism / scenery slicing: Strong+ only, PW's own
+     documented ketamine geometry, distinct from a psychedelic fractal ---- */
+  float cubW = uSig_cubism * smoothstep(0.55, 1.0, inten);
+  if (cubW > 0.004) {
+    vec3 cub = kCubism(suv, voff, cubW);
+    scn = mix(scn, cub, cubW * 0.65);
   }
 
   /* ---- dark cold surround; k-hole deepens it toward black ---- */

@@ -14,13 +14,13 @@
     "tracers":      {"curve": "early",  "max": 0.20},
     "ghosting":     {"curve": "smooth", "max": 0.40}
   },
-  "signatureParams": { "recession": 1.0, "flatten": 0.95, "kholeTunnel": 1.0, "verticalDouble": 1.1 },
+  "signatureParams": { "recession": 1.0, "flatten": 0.95, "kholeTunnel": 1.0, "verticalDouble": 1.1, "cubism": 0.9 },
   "tierNotes": [
     "Threshold: slight softness, nothing more (all curves smooth — nothing spikes early).",
     "Light: mild vertical doubling + painting-flattening begins; colors cool.",
     "Common: clear doubling, frame-hold stutter, desaturation toward gray-blue.",
-    "Strong: world visibly shrinking inside a dark surround; tunnel forming (late vignette wakes).",
-    "Heavy: full k-hole — scene collapses to a small, flat, contrast-crushed painting swimming in a near-black surround; doubling and stutter are extreme."
+    "Strong: world visibly shrinking inside a dark surround; tunnel forming (late vignette wakes); environmental cubism/scenery-slicing begins — the painting starts looking assembled from large, softly-bounded, faintly mismatched glossy panels (PsychonautWiki's own documented ketamine geometry, milder and less intricate than a psychedelic fractal).",
+    "Heavy: full k-hole — scene collapses to a small, flat, contrast-crushed painting swimming in a near-black surround; doubling and stutter are extreme; the panel-slicing is fully present, slowly turning, multicoloured and glossy."
   ],
   "sources": ["psychonautwiki:ketamine", "psychonautwiki:visual-effects"]
 }
