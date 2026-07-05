@@ -6,17 +6,22 @@
      · vertical-divergence double vision on the receded image
      · painting-flattening — blur where edge magnitude is low, keep strong
        edges; local contrast crush
-     · environmental cubism / scenery slicing — user feedback: Heavy read
-       as "just smaller and shaky." PsychonautWiki documents real
-       high-dose ketamine geometry distinct from psychedelics'
+     · environmental cubism / scenery slicing — PsychonautWiki documents
+       real high-dose ketamine geometry distinct from psychedelics'
        fractal/kaleidoscope symmetry: "environmental cubism," "environmental
        orbism," "scenery slicing," characterized as "simplistic in
        complexity, algorithmic... synthetic... dimly lit... multicoloured...
        glossy... soft in edges... large in size... smooth in motion" (and
-       explicitly milder/less intricate than psychedelic geometry). Modeled
-       as a handful of large, softly-bounded panels the painting seems
-       assembled from, each independently re-sampled/tinted/glossy — the
-       world looks sliced into slightly-disagreeing facets, not warped.
+       explicitly milder/less intricate than psychedelic geometry). After
+       three rounds of user feedback ("not psychedelic at all," an obvious
+       "V" artifact, edges too plain), rebuilt around the "algorithmic...
+       synthetic" wording specifically: each facet is now a heavily-
+       averaged, mildly-posterized FLAT-SHADED panel with a soft local
+       radial highlight — the world looks re-rendered as a low-poly/
+       synthetic mesh of itself, not a subtly-shifted photograph. This is
+       deliberately a different kind of "reality changing" than
+       LSD/DMT — flat, geometric, dim, low-complexity, never fractal or
+       rainbow-saturated.
    Shared params supply stutter, desat, cool cast, late tunnel vignette.
    Params: recession, flatten, kholeTunnel, verticalDouble, cubism
    sources: psychonautwiki:ketamine */
@@ -33,68 +38,91 @@ vec3 kFlat(vec2 uv){
   return acc;
 }
 
-/* environmental cubism / scenery slicing: large soft glossy facets the
-   painting seems built from — "large in size, soft in edges, smooth in
-   motion," never a sharp fractal cut. Rewritten twice after user feedback:
+/* a much wider average than kFlat — approximates the flat, averaged
+   colour of a whole "panel" rather than a light photographic soften */
+vec3 kFlatWide(vec2 uv, float r){
+  vec2 px = r / uRes;
+  vec3 acc = texture(uScene, uv).rgb * 0.2;
+  acc += texture(uScene, uv + vec2( px.x,  px.y)).rgb * 0.2;
+  acc += texture(uScene, uv + vec2(-px.x,  px.y)).rgb * 0.2;
+  acc += texture(uScene, uv + vec2( px.x, -px.y)).rgb * 0.2;
+  acc += texture(uScene, uv + vec2(-px.x, -px.y)).rgb * 0.2;
+  return acc;
+}
+
+/* environmental cubism / scenery slicing: large flat-shaded panels the
+   painting seems re-rendered from. Third rewrite after user feedback:
    v1 rotated a rectangular sample grid every frame — pixels near cell
    borders flipped between facets each frame (jitter/flicker), and the
    axis-aligned grid moiréd against any regularly-patterned image (brick
-   courses) into a literal "fence/plaid" look, while barely reading at all
-   on flatter scenes. v2 scatters a handful of seed points irregularly
-   (no periodicity, so no moiré against regular textures) and blends
-   smoothly between only the two nearest seeds over a wide feather — there
-   is no hard cell boundary anywhere, and the grid never moves, so there
-   is nothing to flicker. Each seed's zoom/offset/hue breathes over time
-   via its own fixed sine phase (the "breathing/patterns" ask). */
+   courses) into a literal "fence/plaid" look. v2 scattered irregular seed
+   points with a soft cross-fade (fixed the jitter/moiré) but read as a
+   photo with a slight shift, not real distortion, and its "glossy sheen"
+   was an unbounded diagonal plane wave across the WHOLE frame — two such
+   waves at different phases crossing each other is exactly what produced
+   the reported "V" artifact. v3 (this one) keeps the irregular-seed
+   scatter but drops the plane-wave sheen entirely in favour of a small,
+   spatially-bounded radial highlight per facet, and leans hard into
+   "algorithmic... synthetic... simplistic in complexity" by making each
+   facet mostly a wide flat average of itself (kFlatWide) rather than a
+   sharp resample, lightly posterized. */
 vec3 kCubism(vec2 uv, float voff, float w){
   vec2 asp = vec2(uAspect, 1.0);
   vec2 p = uv * asp;
   const int N = 6;
   float d0 = 1e9, d1 = 1e9;
   float i0 = 0.0, i1 = 0.0;
+  vec2 seed0 = vec2(0.0), seed1 = vec2(0.0);
   for (int i = 0; i < N; i++) {
     float fi = float(i);
     vec2 seed = vec2(hash1(fi * 3.7 + 1.0), hash1(fi * 5.3 + 7.0)) * asp;
     float dist = length(p - seed);
-    if (dist < d0) { d1 = d0; i1 = i0; d0 = dist; i0 = fi; }
-    else if (dist < d1) { d1 = dist; i1 = fi; }
+    if (dist < d0) { d1 = d0; i1 = i0; seed1 = seed0; d0 = dist; i0 = fi; seed0 = seed; }
+    else if (dist < d1) { d1 = dist; i1 = fi; seed1 = seed; }
   }
 
   float ph0 = hash1(i0 * 9.1 + 2.0) * TAU;
   float ph1 = hash1(i1 * 9.1 + 2.0) * TAU;
   float br0 = 0.5 + 0.5 * sin(uTime * 0.22 + ph0);
   float br1 = 0.5 + 0.5 * sin(uTime * 0.22 + ph1);
-  /* distortion strengthened per user feedback ("just blurring and double
-     vision, not real patterns/distortion") */
-  vec2 off0 = (hash2(vec2(i0, 1.0)) - 0.5) * (0.016 + 0.026 * br0) * w;
-  vec2 off1 = (hash2(vec2(i1, 1.0)) - 0.5) * (0.016 + 0.026 * br1) * w;
-  float z0 = 1.0 + ((hash1(i0 * 2.0) - 0.5) * 0.06 + (br0 - 0.5) * 0.06) * w;
-  float z1 = 1.0 + ((hash1(i1 * 2.0) - 0.5) * 0.06 + (br1 - 0.5) * 0.06) * w;
+  vec2 off0 = (hash2(vec2(i0, 1.0)) - 0.5) * (0.012 + 0.020 * br0) * w;
+  vec2 off1 = (hash2(vec2(i1, 1.0)) - 0.5) * (0.012 + 0.020 * br1) * w;
+  float z0 = 1.0 + ((hash1(i0 * 2.0) - 0.5) * 0.05 + (br0 - 0.5) * 0.05) * w;
+  float z1 = 1.0 + ((hash1(i1 * 2.0) - 0.5) * 0.05 + (br1 - 0.5) * 0.05) * w;
 
   vec2 fuv0 = clamp((uv - 0.5) * z0 + 0.5 + off0, 0.0, 1.0);
   vec2 fuv1 = clamp((uv - 0.5) * z1 + 0.5 + off1, 0.0, 1.0);
-  /* blend toward a softened sample for the facet re-fetch: a sharp
-     re-sample of a fine repeating texture (brick courses) at a slightly
-     different zoom/offset per facet beats against itself and reads as a
-     moiré "fence," not cubism — softening kills the interference while
-     keeping the panel displacement visible. Blend ratio pulled back a
-     little (was 0.5) since the distortion itself was too faint to read. */
-  vec3 c0 = mix(0.5 * (texture(uScene, fuv0).rgb
-                      + texture(uScene, clamp(fuv0 + vec2(0.0, voff), 0.0, 1.0)).rgb),
-                kFlat(fuv0), 0.32);
-  vec3 c1 = mix(0.5 * (texture(uScene, fuv1).rgb
-                      + texture(uScene, clamp(fuv1 + vec2(0.0, voff), 0.0, 1.0)).rgb),
-                kFlat(fuv1), 0.32);
+
+  vec3 photo0 = 0.5 * (texture(uScene, fuv0).rgb
+                      + texture(uScene, clamp(fuv0 + vec2(0.0, voff), 0.0, 1.0)).rgb);
+  vec3 photo1 = 0.5 * (texture(uScene, fuv1).rgb
+                      + texture(uScene, clamp(fuv1 + vec2(0.0, voff), 0.0, 1.0)).rgb);
+  vec3 flat0 = kFlatWide(fuv0, 26.0);
+  vec3 flat1 = kFlatWide(fuv1, 26.0);
+
+  /* mostly the wide flat average — the "synthetic/low-complexity" read —
+     with a bit of the photo underneath so it doesn't go fully abstract */
+  vec3 c0 = mix(photo0, flat0, 0.55 + 0.35 * w);
+  vec3 c1 = mix(photo1, flat1, 0.55 + 0.35 * w);
+
+  /* light posterize — "algorithmic... simplistic in complexity" — blended
+     in rather than a full replace, so it reads as quantized shading, not
+     harsh banding */
+  vec3 post0 = floor(c0 * 4.5 + 0.5) / 4.5;
+  vec3 post1 = floor(c1 * 4.5 + 0.5) / 4.5;
+  c0 = mix(c0, post0, 0.5 * w);
+  c1 = mix(c1, post1, 0.5 * w);
+
+  /* small, bounded radial highlight from the facet's own seed — reads as
+     a flat polygon lit from its centre, unlike the old plane-wave sheen
+     (unbounded, spans the whole frame, and is what caused the "V") */
+  float gloss0 = 1.0 - smoothstep(0.0, 1.3, length(p - seed0));
+  float gloss1 = 1.0 - smoothstep(0.0, 1.3, length(p - seed1));
+  c0 += gloss0 * 0.06 * w;
+  c1 += gloss1 * 0.06 * w;
+
   c0 = hueRot(c0, ((hash1(i0 * 2.0) - 0.5) * 0.30 + (br0 - 0.5) * 0.15) * w);
   c1 = hueRot(c1, ((hash1(i1 * 2.0) - 0.5) * 0.30 + (br1 - 0.5) * 0.15) * w);
-
-  /* a genuine pattern, not just a re-sampled photo: a soft, slow-drifting
-     glossy sheen band per facet ("glossy in shading" per PW), a low-
-     frequency interference stripe that breathes with the same phase */
-  float sheen0 = sin(dot(uv, vec2(6.0, 5.0)) + ph0 * 1.3 + uTime * 0.12) * 0.5 + 0.5;
-  float sheen1 = sin(dot(uv, vec2(6.0, 5.0)) + ph1 * 1.3 + uTime * 0.12) * 0.5 + 0.5;
-  c0 += pow(sheen0, 5.0) * 0.10 * w * vec3(0.6, 0.7, 0.85);
-  c1 += pow(sheen1, 5.0) * 0.10 * w * vec3(0.6, 0.7, 0.85);
 
   /* wide, soft cross-fade between only the two closest facets — no hard
      seam anywhere in the frame */
