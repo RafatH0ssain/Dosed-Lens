@@ -57,16 +57,16 @@
    depth/perspective-unstable state well before geometry/cubism appear —
    this is that baseline, not a preview of the heavier mechanics. */
 vec2 sigWarp(vec2 uv){
-  float w = smoothstep(0.04, 0.55, uIntensity);
+  float w = smoothstep(0.04, 0.6, uIntensity);
   if (w > 0.004) {
     vec2 tang = edgeTangent(uv);
     float mag = edgeAt(uv).z;
-    float crawl = sin(uTime * 0.11 + fbm(uv * 2.0 + 3.0) * 4.0);
-    uv += tang * (0.3 + 0.7 * mag) * crawl * 0.013 * w;
+    float crawl = sin(uTime * 0.16 + fbm(uv * 2.0 + 3.0) * 4.0);
+    uv += tang * (0.3 + 0.7 * mag) * crawl * 0.022 * w;
 
     vec2 asp = vec2(uAspect, 1.0);
     vec2 c = (uv - 0.5) * asp;
-    float zoom = 1.0 + 0.024 * w * sin(uTime * 0.14);
+    float zoom = 1.0 + 0.034 * w * sin(uTime * 0.19);
     uv = c / zoom / asp + 0.5;
   }
   return uv;
@@ -125,11 +125,11 @@ vec3 kFlatWide(vec2 uv, float r){
 vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
   vec2 tang = edgeTangent(uv);
   float mag = edgeAt(uv).z;
-  float crawl = 0.5 + 0.5 * sin(uTime * 0.10 + fbm(uv * 1.7) * 4.0);
-  vec2 flow = uv + tang * (0.35 + 0.65 * mag) * (0.04 + 0.05 * crawl) * w;
+  float crawl = 0.5 + 0.5 * sin(uTime * 0.16 + fbm(uv * 1.7) * 4.0);
+  vec2 flow = uv + tang * (0.35 + 0.65 * mag) * (0.05 + 0.06 * crawl) * w;
 
-  float n1 = fbm(flow * 2.2 + uTime * 0.045);
-  float n2 = fbm(flow * 4.1 - uTime * 0.032 + 5.0);
+  float n1 = fbm(flow * 2.2 + uTime * 0.07);
+  float n2 = fbm(flow * 4.1 - uTime * 0.05 + 5.0);
   float sig = n1 * 0.6 + n2 * 0.4;
   /* wider bands (3 instead of 4 levels), mixed in harder — first pass's
      bands were too fine/subtle to read as a visible pattern at all,
