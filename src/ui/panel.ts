@@ -4,6 +4,7 @@ import type { Profile } from '../engine/resolver';
 import { createPicker } from './picker';
 import { createTierSlider } from './slider';
 import { createToggles, ToggleActions } from './toggles';
+import { createOverrides, OverrideCallbacks } from './overrides';
 
 const SAMPLES = [
   '01-room-lamp', '02-brick-wall', '03-forest', '05-statue', '06-sky',
@@ -17,7 +18,7 @@ const ABOUT =
 
 const GATE_KEY = 'dosed-lens-deliriant-ack';
 
-export interface PanelCallbacks extends ToggleActions {
+export interface PanelCallbacks extends ToggleActions, OverrideCallbacks {
   onSubstance(id: string): void;
   onIntensity(v: number): void;
   onSample(url: string): void;
@@ -25,10 +26,12 @@ export interface PanelCallbacks extends ToggleActions {
 }
 
 export interface Panel {
-  setSubstance(p: Profile): void;
+  setSubstance(p: Profile, initialOverrides?: Record<string, number>): void;
   setIntensity(v: number): void;
   setPaused(p: boolean): void;
   setActiveSample(name: string | null): void;
+  /** Select a substance through the same gate flow as clicking the picker. */
+  pick(id: string): void;
 }
 
 export function createPanel(
@@ -51,6 +54,7 @@ export function createPanel(
         <label class="btn">load image<input type="file" accept="image/*" id="file"></label>
       </div>
       <div id="actions"></div>
+      <div id="overrides" class="overrides"></div>
       <div class="hint"><kbd>H</kbd> panel · <kbd>space</kbd> pause · <kbd>1–5</kbd> tiers · drop an image anywhere</div>
     </div>
     <div id="tap">press H for controls</div>
@@ -76,7 +80,9 @@ export function createPanel(
   const gated = (p: Profile) =>
     p.class === 'deliriant' && !localStorage.getItem(GATE_KEY);
 
-  const picker = createPicker(root.querySelector('#picker')!, profiles, (id) => {
+  // gated pick: show the confirm dialog for un-acknowledged deliriants,
+  // otherwise apply immediately. Shared by the picker and boot deep-links.
+  const pick = (id: string) => {
     const p = profiles.get(id)!;
     if (gated(p)) {
       pendingGateId = id;
@@ -85,7 +91,9 @@ export function createPanel(
       return;
     }
     cb.onSubstance(id);
-  });
+  };
+
+  const picker = createPicker(root.querySelector('#picker')!, profiles, pick);
   root.querySelector('#gate-yes')!.addEventListener('click', () => {
     localStorage.setItem(GATE_KEY, '1');
     gate.classList.remove('show');
@@ -98,6 +106,7 @@ export function createPanel(
 
   const slider = createTierSlider(root.querySelector('#slider')!, cb.onIntensity);
   const toggles = createToggles(root.querySelector('#actions')!, cb);
+  const overrides = createOverrides(root.querySelector('#overrides')!, cb);
 
   // samples
   const samplesEl = root.querySelector<HTMLElement>('#samples')!;
@@ -133,8 +142,9 @@ export function createPanel(
   });
 
   return {
-    setSubstance(p) {
+    setSubstance(p, initialOverrides) {
       picker.setActive(p.id);
+      overrides.rebuild(p, initialOverrides);
       lv.textContent = p.name.toUpperCase();
       if (p.warning && p.class !== 'deliriant') {
         note.textContent = '⚠ ' + p.warning;
@@ -151,6 +161,7 @@ export function createPanel(
     setActiveSample(name) {
       for (const [n, img] of sampleImgs) img.classList.toggle('on', n === name);
     },
+    pick,
   };
 }
 

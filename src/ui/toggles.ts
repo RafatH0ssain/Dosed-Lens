@@ -15,8 +15,8 @@ export function createToggles(root: HTMLElement, actions: ToggleActions): {
   row.innerHTML = `
     <button data-a="pause">pause</button>
     <button data-a="split">split</button>
-    <button data-a="png">png</button>
-    <button data-a="webm">rec</button>`;
+    <button data-a="png" title="save the current frame as PNG">png</button>
+    <button data-a="webm" title="record WebM — auto-stops at 30 s, click again to stop sooner">rec</button>`;
   root.appendChild(row);
 
   const btn = (a: string) => row.querySelector<HTMLButtonElement>(`[data-a="${a}"]`)!;

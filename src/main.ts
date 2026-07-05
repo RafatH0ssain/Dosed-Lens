@@ -73,10 +73,16 @@ const state = {
   split: 0,
   time: 0,
   mouse: [0.5, 0.5] as [number, number],
+  image: '01-room-lamp' as string | null, // null once a local upload is loaded
+  overrides: {} as Record<string, number>, // non-default per-effect multipliers
 };
 
 function syncHash(): void {
-  history.replaceState(null, '', `#s=${state.substance}&i=${state.intensity.toFixed(2)}`);
+  const parts = [`s=${state.substance}`, `i=${state.intensity.toFixed(2)}`];
+  if (state.image) parts.push(`img=${state.image}`);
+  const ov = Object.entries(state.overrides).filter(([, m]) => m !== 1);
+  if (ov.length) parts.push(`o=${ov.map(([n, m]) => `${n}:${m}`).join(',')}`);
+  history.replaceState(null, '', `#${parts.join('&')}`);
 }
 
 function smooth01(x: number): number {
@@ -88,6 +94,9 @@ const panel = createPanel(document.getElementById('app')!, profiles, {
   onSubstance(id) {
     state.substance = id;
     const p = profiles.get(id)!;
+    // a fresh substance has its own param set — clear any prior overrides
+    for (const k of Object.keys(resolver.overrides)) delete resolver.overrides[k];
+    state.overrides = {};
     resolver.setProfile(p);
     graph.setSignature(signatureFor(id), Object.keys(p.signatureParams));
     panel.setSubstance(p);
@@ -95,6 +104,12 @@ const panel = createPanel(document.getElementById('app')!, profiles, {
   },
   onIntensity(v) {
     state.intensity = v;
+    syncHash();
+  },
+  onOverride(name, mult) {
+    resolver.overrides[name] = mult;
+    if (mult === 1) delete state.overrides[name];
+    else state.overrides[name] = mult;
     syncHash();
   },
   onSample(url) {
@@ -131,7 +146,9 @@ function loadImageURL(url: string, done?: () => void): void {
     graph.brightPos.set(stats.bright);
     particles.setImageStats(stats);
     const m = url.match(/samples\/(.+)\.png/);
-    panel.setActiveSample(m ? m[1] : null);
+    state.image = m ? m[1] : null; // local uploads aren't permalinkable
+    panel.setActiveSample(state.image);
+    syncHash();
     done?.();
   };
   img.src = url;
@@ -155,19 +172,40 @@ addEventListener('pointermove', (e) => {
   state.mouse[1] = 1 - e.clientY / innerHeight;
 });
 
-// initial state, overridable via URL hash (#s=lsd&i=0.5&img=02-brick-wall)
+// initial state, overridable via URL hash
+// (#s=lsd&i=0.5&img=02-brick-wall&o=breathing:1.5,tracers:0)
 const hash = new URLSearchParams(location.hash.slice(1));
 const hs = hash.get('s');
-if (hs && profiles.has(hs)) state.substance = hs;
 const hi = parseFloat(hash.get('i') ?? '');
 if (!Number.isNaN(hi)) state.intensity = Math.min(1, Math.max(0, hi));
+
+// per-effect override multipliers (o=name:mult,name:mult), clamped to 0..2
+const initOverrides: Record<string, number> = {};
+for (const pair of (hash.get('o') ?? '').split(',')) {
+  const [n, v] = pair.split(':');
+  const m = parseFloat(v);
+  if (n && !Number.isNaN(m)) initOverrides[n] = Math.min(2, Math.max(0, m));
+}
+
+// A deliriant deep-link must still clear the gate on first visit: apply a
+// safe default now, then route the requested id through panel.pick (which
+// shows the confirm dialog when the ack is missing, or applies it directly).
+let deferredPick: string | null = null;
+if (hs && profiles.has(hs)) {
+  if (profiles.get(hs)!.class === 'deliriant') deferredPick = hs;
+  else state.substance = hs;
+}
 
 panel.setIntensity(state.intensity);
 const p0 = profiles.get(state.substance)!;
 resolver.setProfile(p0);
 graph.setSignature(signatureFor(state.substance), Object.keys(p0.signatureParams));
-panel.setSubstance(p0);
+// seed overrides only for a directly-applied substance (they were authored
+// for it, not for the safe default shown while a gate is pending)
+panel.setSubstance(p0, deferredPick ? undefined : initOverrides);
 loadImageURL(`/samples/${hash.get('img') ?? '01-room-lamp'}.png`);
+
+if (deferredPick) panel.pick(deferredPick);
 
 
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
