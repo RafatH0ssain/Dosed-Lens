@@ -23,15 +23,16 @@ float mdmaBurst(){
   float onset = 0.1 + 0.5 * hash1(slot * 3.71);
   float gate = step(hash1(slot * 7.13), smoothstep(0.3, 1.0, uIntensity) * 0.75);
   /* wide, soft attack/release — an eased drift into and out of the wiggle
-     rather than a sharp snap */
-  return gate * smoothstep(onset, onset + 0.14, tIn)
-              * (1.0 - smoothstep(onset + 0.22, onset + 0.40, tIn));
+     rather than a sharp snap; widened further per user feedback (still
+     too quick) */
+  return gate * smoothstep(onset, onset + 0.22, tIn)
+              * (1.0 - smoothstep(onset + 0.30, onset + 0.55, tIn));
 }
 
 vec2 sigWarp(vec2 uv){
   float b = mdmaBurst() * uSig_nystagmus;
   if (b > 0.004) {
-    uv.x += sin(uTime * TAU * 6.0) * 0.0024 * b;
+    uv.x += sin(uTime * TAU * 5.0) * 0.0018 * b;
   }
   return uv;
 }
