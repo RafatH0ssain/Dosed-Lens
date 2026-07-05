@@ -106,7 +106,7 @@ vec3 sigColor(vec3 col, vec2 uv){
   float inten = uIntensity;
 
   /* ---- world recession: sample a shrunk scene, dark around it ---- */
-  float rec = uSig_recession * smoothstep(0.30, 1.0, inten) * 0.42;
+  float rec = uSig_recession * smoothstep(0.30, 1.0, inten) * 0.58;
   vec2 ruv = (uv - 0.5) / max(1.0 - rec, 1e-3) + 0.5;
   /* rounded mask — user feedback: the receding painting's hard rectangular
      corners should be rounded off. A superellipse (squircle) softens the
@@ -126,15 +126,21 @@ vec3 sigColor(vec3 col, vec2 uv){
   float flatW = uSig_flatten * smoothstep(0.10, 0.70, inten);
   if (flatW > 0.004) {
     float em = edgeAt(suv).z;
+    /* hard edges (mortar lines, object outlines) used to stay fully crisp
+       forever — user feedback: they "still exist plainly" against
+       everything else swimming. At higher doses they now lose some of
+       that protection too, so the whole painting participates. */
+    float edgeProtect = 1.0 - em * (1.0 - 0.55 * smoothstep(0.5, 1.0, inten));
     vec3 flat5 = 0.5 * (kFlat(suv) + kFlat(clamp(suv + vec2(0.0, voff), 0.0, 1.0)));
-    scn = mix(scn, flat5, flatW * (1.0 - em) * 0.85);
+    scn = mix(scn, flat5, flatW * edgeProtect * 0.85);
     /* local contrast crush — the "painting" look */
     scn = mix(scn, vec3(0.5) + (scn - vec3(0.5)) * 0.62, flatW * 0.65);
   }
 
-  /* ---- environmental cubism / scenery slicing: Strong+ only, PW's own
-     documented ketamine geometry, distinct from a psychedelic fractal ---- */
-  float cubW = uSig_cubism * smoothstep(0.5, 1.0, inten);
+  /* ---- environmental cubism / scenery slicing: wakes up by upper-Common
+     now (was Strong-only — user feedback: "no psychedelic effects after
+     high common doses") ---- */
+  float cubW = uSig_cubism * smoothstep(0.35, 0.85, inten);
   if (cubW > 0.004) {
     vec3 cub = kCubism(suv, voff, cubW);
     scn = mix(scn, cub, cubW * 0.85);
