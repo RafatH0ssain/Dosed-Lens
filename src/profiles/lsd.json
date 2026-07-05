@@ -24,7 +24,7 @@
     "Light: color pop unmistakable, faint breathing on large surfaces; still deniable in motion.",
     "Common: full edge-tangent drift, short rainbow-tinged trails; smooth-curve params reach midrange.",
     "Strong: lattice surfaces in texture, long rainbow trails; late params (patternMask, hueDrift, flowWarp) wake up.",
-    "Heavy: fractal tiling folds the scene onto itself much more aggressively now (earlier onset, wider blend, sharper unsharp-halo/saturation) — feedback that Heavy wasn't strong enough; everything simultaneous, geometry now genuinely dominates over the photo rather than lightly tiling it."
+    "Heavy: reality folds into itself. The fractal tiling is now a living, recursive fold — the scene is kaleidoscopically mirrored, that fold is folded again into a denser self-similar lattice, the whole field domain-warps so it swims rather than sitting like a static mirror, and the gate relaxes so it spreads onto flat walls too (not just textured regions). Surfaces swim hard along their own contours (~2.4× the base tangent drift) and rainbow trails persist longer with a stronger spectral shift. Crucially distinct from DMT: the photo's own content and colour are what tile — no tunnel, no entities, no scene replacement — reality stays legible but geometry genuinely dominates it."
   ],
   "sources": ["psychonautwiki:lsd", "psychonautwiki:visual-effects", "kluver-1928"]
 }
