@@ -32,7 +32,9 @@ float mdmaBurst(){
 vec2 sigWarp(vec2 uv){
   float b = mdmaBurst() * uSig_nystagmus;
   if (b > 0.004) {
-    uv.x += sin(uTime * TAU * 5.0) * 0.0018 * b;
+    /* slowed further per user feedback — still felt abrupt at 5 Hz;
+       a gentler 3.2 Hz wiggle at lower amplitude */
+    uv.x += sin(uTime * TAU * 3.2) * 0.0011 * b;
   }
   return uv;
 }
