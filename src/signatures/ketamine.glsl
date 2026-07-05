@@ -34,27 +34,61 @@ vec3 kFlat(vec2 uv){
 }
 
 /* environmental cubism / scenery slicing: large soft glossy facets the
-   painting seems built from, slowly turning — "large in size, soft in
-   edges, smooth in motion," never a sharp fractal cut */
+   painting seems built from — "large in size, soft in edges, smooth in
+   motion," never a sharp fractal cut. Rewritten twice after user feedback:
+   v1 rotated a rectangular sample grid every frame — pixels near cell
+   borders flipped between facets each frame (jitter/flicker), and the
+   axis-aligned grid moiréd against any regularly-patterned image (brick
+   courses) into a literal "fence/plaid" look, while barely reading at all
+   on flatter scenes. v2 scatters a handful of seed points irregularly
+   (no periodicity, so no moiré against regular textures) and blends
+   smoothly between only the two nearest seeds over a wide feather — there
+   is no hard cell boundary anywhere, and the grid never moves, so there
+   is nothing to flicker. Each seed's zoom/offset/hue breathes over time
+   via its own fixed sine phase (the "breathing/patterns" ask). */
 vec3 kCubism(vec2 uv, float voff, float w){
   vec2 asp = vec2(uAspect, 1.0);
-  vec2 p = uv * asp * 2.2;
-  p = rot2(p, uTime * 0.012);
-  vec2 cell = floor(p);
-  vec2 f = fract(p);
-  float h = hash1(dot(cell, vec2(12.9898, 78.233)) + 4.0);
-  vec2 facetOff = (hash2(cell + 5.1) - 0.5) * 0.026 * w;
-  float facetZoom = 1.0 + (h - 0.5) * 0.07 * w;
-  vec2 fuv = clamp((uv - 0.5) * facetZoom + 0.5 + facetOff, 0.0, 1.0);
-  vec3 fcol = 0.5 * (texture(uScene, fuv).rgb
-                    + texture(uScene, clamp(fuv + vec2(0.0, voff), 0.0, 1.0)).rgb);
-  /* multicoloured, glossy: a gentle per-facet hue turn + soft sheen */
-  fcol = hueRot(fcol, (h - 0.5) * 0.4 * w);
-  float distToEdge = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
-  float seam = 1.0 - smoothstep(0.0, 0.11, distToEdge);
-  fcol *= 1.0 - seam * 0.20 * w;
-  fcol += seam * w * 0.06 * vec3(0.55, 0.68, 0.85);
-  return fcol;
+  vec2 p = uv * asp;
+  const int N = 6;
+  float d0 = 1e9, d1 = 1e9;
+  float i0 = 0.0, i1 = 0.0;
+  for (int i = 0; i < N; i++) {
+    float fi = float(i);
+    vec2 seed = vec2(hash1(fi * 3.7 + 1.0), hash1(fi * 5.3 + 7.0)) * asp;
+    float dist = length(p - seed);
+    if (dist < d0) { d1 = d0; i1 = i0; d0 = dist; i0 = fi; }
+    else if (dist < d1) { d1 = dist; i1 = fi; }
+  }
+
+  float ph0 = hash1(i0 * 9.1 + 2.0) * TAU;
+  float ph1 = hash1(i1 * 9.1 + 2.0) * TAU;
+  float br0 = 0.5 + 0.5 * sin(uTime * 0.22 + ph0);
+  float br1 = 0.5 + 0.5 * sin(uTime * 0.22 + ph1);
+  vec2 off0 = (hash2(vec2(i0, 1.0)) - 0.5) * (0.008 + 0.014 * br0) * w;
+  vec2 off1 = (hash2(vec2(i1, 1.0)) - 0.5) * (0.008 + 0.014 * br1) * w;
+  float z0 = 1.0 + ((hash1(i0 * 2.0) - 0.5) * 0.032 + (br0 - 0.5) * 0.032) * w;
+  float z1 = 1.0 + ((hash1(i1 * 2.0) - 0.5) * 0.032 + (br1 - 0.5) * 0.032) * w;
+
+  vec2 fuv0 = clamp((uv - 0.5) * z0 + 0.5 + off0, 0.0, 1.0);
+  vec2 fuv1 = clamp((uv - 0.5) * z1 + 0.5 + off1, 0.0, 1.0);
+  /* blend toward a softened sample for the facet re-fetch: a sharp
+     re-sample of a fine repeating texture (brick courses) at a slightly
+     different zoom/offset per facet beats against itself and reads as a
+     moiré "fence," not cubism — softening kills the interference while
+     keeping the panel displacement visible */
+  vec3 c0 = mix(0.5 * (texture(uScene, fuv0).rgb
+                      + texture(uScene, clamp(fuv0 + vec2(0.0, voff), 0.0, 1.0)).rgb),
+                kFlat(fuv0), 0.5);
+  vec3 c1 = mix(0.5 * (texture(uScene, fuv1).rgb
+                      + texture(uScene, clamp(fuv1 + vec2(0.0, voff), 0.0, 1.0)).rgb),
+                kFlat(fuv1), 0.5);
+  c0 = hueRot(c0, ((hash1(i0 * 2.0) - 0.5) * 0.30 + (br0 - 0.5) * 0.15) * w);
+  c1 = hueRot(c1, ((hash1(i1 * 2.0) - 0.5) * 0.30 + (br1 - 0.5) * 0.15) * w);
+
+  /* wide, soft cross-fade between only the two closest facets — no hard
+     seam anywhere in the frame */
+  float weight0 = smoothstep(-0.35, 0.35, d1 - d0);
+  return mix(c1, c0, weight0);
 }
 
 vec3 sigColor(vec3 col, vec2 uv){
