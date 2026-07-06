@@ -1,57 +1,17 @@
 /* Ketamine — "the world becomes a flat painting at the end of a tunnel"
    sigColor carries the identity (recession + doubling need two scene taps
    and a dark surround, which a pure uv warp cannot express):
-     · world recession — scene shrinks toward the center inside a dark
-       surround (→ ~70% at Heavy)
+     · world recession — scene shrinks toward the center in a dark surround
      · vertical-divergence double vision on the receded image
-     · painting-flattening — blur where edge magnitude is low, keep strong
-       edges; local contrast crush
-     · environmental cubism / scenery slicing — PsychonautWiki documents
-       real high-dose ketamine geometry distinct from psychedelics'
-       fractal/kaleidoscope symmetry: "environmental cubism," "environmental
-       orbism," "scenery slicing," characterized as "simplistic in
-       complexity, algorithmic... synthetic... dimly lit... multicoloured...
-       glossy... soft in edges... large in size... smooth in motion" (and
-       explicitly milder/less intricate than psychedelic geometry). After
-       three rounds of user feedback ("not psychedelic at all," an obvious
-       "V" artifact, edges too plain), rebuilt around the "algorithmic...
-       synthetic" wording specifically: each facet is now a heavily-
-       averaged, mildly-posterized FLAT-SHADED panel with a soft local
-       radial highlight — the world looks re-rendered as a low-poly/
-       synthetic mesh of itself, not a subtly-shifted photograph. This is
-       deliberately a different kind of "reality changing" than
-       LSD/DMT — flat, geometric, dim, low-complexity, never fractal or
-       rainbow-saturated.
+     · painting-flattening — blur low-edge regions, keep strong edges
+     · environmental cubism — flat-shaded posterized panels (PsychonautWiki's
+       "algorithmic/synthetic/low-complexity" ketamine geometry, distinct
+       from psychedelic fractals)
+     · dissolve — a continuous edge-tangent-advected, posterized field that
+       the photo gives way to at Heavy (flat/desaturated, never rainbow)
    Shared params supply stutter, desat, cool cast, late tunnel vignette.
-   Heavy-only "dissolve": user feedback asked for the image to visibly
-   disappear into pattern/shimmer/breathing at Heavy. First attempt
-   (kShimmer, mixed per-facet inside kCubism's 2-nearest-neighbour Voronoi
-   partition) reintroduced the "V": with only 6 seeds, the boundary between
-   the two globally-nearest facets is a long, near-straight Voronoi edge,
-   and once the two sides carry strongly divergent shimmer colours that
-   edge reads as a hard seam/chevron across the whole frame. It also read
-   as "a cloud moving over it" — the pattern was raw multi-octave noise
-   with no tie to the photo's own edges/luminance, a floating overlay
-   rather than the image's own structure changing. v2 (kDissolve) drops the
-   facet system for this stage: one continuous field, advected along the
-   image's own edge tangents and masked by texture-energy/luminance (the
-   same masking approach P3 uses for the psychedelic profiles), so the
-   "reality change" borrows the psychedelics' structure-driven pattern
-   language but stays flat/posterized/desaturated — ketamine's own
-   documented "algorithmic" look, never LSD/DMT's rainbow or fractal tiling.
-   Params: recession, flatten, kholeTunnel, verticalDouble, cubism, dissolve
-   sources: psychonautwiki:ketamine */
+   Params: recession, flatten, kholeTunnel, verticalDouble, cubism, dissolve */
 
-/* No bespoke geometric warp here — a previous pass added one (edge-tangent
-   crawl + breathing zoom) to fix "Common shows no movement," but stacked
-   on the "smooth"-curve shared breathing/drift/flowWarp trio it meant
-   FOUR overlapping surface-motion mechanics were all near full strength by
-   Common, which is a big part of why Common then felt "too strong" and
-   the frame "very laggy" (that plus the shared patternMask reactivating
-   P3's expensive per-pixel path — see ketamine.json). Shared
-   breathing/drift/flowWarp (now on the 'late' curve, so gentle through
-   Common and reserving their strength for Strong/Heavy) are sufficient on
-   their own; this module doesn't need a second copy of the same idea. */
 vec2 sigWarp(vec2 uv){ return uv; }
 
 vec3 kFlat(vec2 uv){
@@ -64,12 +24,8 @@ vec3 kFlat(vec2 uv){
   return acc;
 }
 
-/* a much wider average than kFlat — approximates the flat, averaged
-   colour of a whole "panel" rather than a light photographic soften.
-   9 taps (centre + 8-direction ring) rather than 4 corners: a sparse
-   4-tap "blur" aliases against fine texture (brick) as the sample UV
-   drifts even slowly, which is what read as "jittery/vibrating" — more
-   taps make this a true stable average instead. */
+/* wide 9-tap average — a stable flat "panel" colour; a sparse 4-tap blur
+   aliases against fine texture as the sample UV drifts (reads as vibration) */
 vec3 kFlatWide(vec2 uv, float r){
   vec2 px = r / uRes;
   vec3 acc = texture(uScene, uv).rgb * 0.2;
@@ -80,30 +36,9 @@ vec3 kFlatWide(vec2 uv, float r){
   return acc;
 }
 
-/* environmental cubism / scenery slicing: large flat-shaded panels the
-   painting seems re-rendered from. Third rewrite after user feedback:
-   v1 rotated a rectangular sample grid every frame — pixels near cell
-   borders flipped between facets each frame (jitter/flicker), and the
-   axis-aligned grid moiréd against any regularly-patterned image (brick
-   courses) into a literal "fence/plaid" look. v2 scattered irregular seed
-   points with a soft cross-fade (fixed the jitter/moiré) but read as a
-   photo with a slight shift, not real distortion, and its "glossy sheen"
-   was an unbounded diagonal plane wave across the WHOLE frame — two such
-   waves at different phases crossing each other is exactly what produced
-   the reported "V" artifact. v3 (this one) keeps the irregular-seed
-   scatter but drops the plane-wave sheen entirely in favour of a small,
-   spatially-bounded radial highlight per facet, and leans hard into
-   "algorithmic... synthetic... simplistic in complexity" by making each
-   facet mostly a wide flat average of itself (kFlatWide) rather than a
-   sharp resample, lightly posterized. */
-/* kDissolve — see the file-header note above for why this replaced the
-   per-facet kShimmer. One continuous field, no Voronoi partition anywhere
-   in it, so there is no seam it can reintroduce. `uv` here is the same
-   whole-frame receded coordinate sigColor already uses (suv), not a
-   per-facet sample, and the pattern is advected along the image's OWN
-   edge tangents (edgeTangent/edgeAt from P1) rather than drifting freely
-   — that's what keeps it from reading as an unrelated cloud passing over
-   the photo. */
+/* dissolve: one continuous field advected along the image's own edge
+   tangents (so it belongs to the photo, not a cloud drifting over it),
+   posterized flat and tinted from the seed palette. */
 vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
   vec2 tang = edgeTangent(uv);
   float mag = edgeAt(uv).z;
@@ -113,24 +48,13 @@ vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
   float n1 = fbm(flow * 2.2 + uTime * 0.07);
   float n2 = fbm(flow * 4.1 - uTime * 0.05 + 5.0);
   float sigRaw = n1 * 0.6 + n2 * 0.4;
-  /* wider bands (3 instead of 4 levels), mixed in harder — first pass's
-     bands were too fine/subtle to read as a visible pattern at all,
-     especially over smooth low-texture surfaces */
   float post = floor(sigRaw * 3.0 + 0.5) / 3.0;
   float sig = mix(sigRaw, post, 0.8);
-  /* graphic band-edge accent — feedback wanted "patterns", not a soft
-     blur: a thin contour line right where the posterize bands change,
-     the same edgeGlow technique P3 uses for its psychedelic overlay, so
-     the pattern reads as a structured, almost hand-drawn shape rather
-     than a gradient smear */
+  /* thin ink-like contour where the posterize bands change */
   float bandEdge = pow(1.0 - abs(sin(sigRaw * 9.0 + uTime * 0.15)), 8.0);
 
-  /* image-structure mask (same shape as P3's), but with a much higher
-     floor than P3 uses — P3 is an overlay riding ON TOP of a photo that
-     stays visible underneath, so it can afford to hide in flat/extreme
-     regions; here the whole point is the photo itself giving way, so even
-     smooth walls and bright light-glow need to dissolve, just a little
-     less eagerly than high-texture surfaces do. */
+  /* image-structure mask, but with a high floor: even smooth walls and
+     bright glow must dissolve here (the photo itself is giving way) */
   float l = lumAt(uv, 0.0);
   float midband = abs(lumAt(uv, 2.0) - lumAt(uv, 5.0));
   float texEnergy = smoothstep(0.01, 0.10, midband);
@@ -141,37 +65,24 @@ vec3 kDissolve(vec2 uv, vec3 baseCol, float w){
   vec3 seedA = mix(uSeedCol[0].rgb, uSeedCol[2].rgb, 0.5 + 0.5 * sin(uTime * 0.05));
   vec3 seedB = mix(uSeedCol[1].rgb, uSeedCol[3].rgb, 0.5 + 0.5 * cos(uTime * 0.045));
   vec3 palette = mix(seedA, seedB, sig);
-  /* only a light tie to the exact underlying pixel's own hue — enough that
-     the result still visibly belongs to this photo, not so much that a
-     uniform wall (near-constant chroma) barely changes at all, which is
-     what made the dissolve read as "basically still a photo" over smooth
-     surfaces */
+  /* light tie to the underlying pixel's hue so it still belongs to this photo */
   vec3 chroma = baseCol / max(luma(baseCol), 0.05);
   palette = mix(palette, palette * chroma, 0.28);
 
-  /* brightness breathing — BUG FIX: this used to be 0.4 + 0.6*sin(...),
-     which dips to -0.2. Once the mask below can cover nearly the whole
-     frame (raised last round so Heavy would actually dissolve), a
-     negative pulse meant the ENTIRE visible image went negative and
-     clamped to black for a real fraction of every cycle — that's what
-     read as "Heavy just shows black." Always positive now. */
+  /* pulse stays strictly positive — a negative dip clamps the whole
+     near-full-frame mask to black for part of every cycle */
   float pulse = 0.62 + 0.38 * sin(uTime * 0.12 + sig * 3.0);
   vec3 dissolved = palette * pulse;
-  /* darken along the band-edge contour rather than brighten — reads as an
-     ink-like line separating facets/patches instead of a highlight glow,
-     staying in ketamine's flat/dim register */
   dissolved *= 1.0 - bandEdge * 0.5;
 
   return mix(baseCol, dissolved, clamp(mask * 1.6, 0.0, 1.0) * w);
 }
 
+/* environmental cubism: large flat-shaded panels via a 2-nearest-seed
+   partition with a wide soft cross-fade (no hard Voronoi seam). */
 vec3 kCubism(vec2 uv, float voff, float w){
   vec2 asp = vec2(uAspect, 1.0);
   vec2 p = uv * asp;
-  /* more seeds (was 6) — feedback wanted more abstractness/fragmentation
-     at Strong/Heavy rather than a photo with a handful of large tinted
-     regions; more, smaller facets read as genuine reconstruction instead
-     of a lightly-panelled photo */
   const int N = 11;
   float d0 = 1e9, d1 = 1e9;
   float i0 = 0.0, i1 = 0.0;
@@ -184,10 +95,6 @@ vec3 kCubism(vec2 uv, float voff, float w){
     else if (dist < d1) { d1 = dist; i1 = fi; seed1 = seed; }
   }
 
-  /* breathing slowed further and its contribution to zoom/offset cut —
-     the continuous sub-pixel drift it caused in the facet sample was
-     part of what read as "jittery/vibrating" (the wider kFlatWide above
-     addresses the rest) */
   float ph0 = hash1(i0 * 9.1 + 2.0) * TAU;
   float ph1 = hash1(i1 * 9.1 + 2.0) * TAU;
   float br0 = 0.5 + 0.5 * sin(uTime * 0.12 + ph0);
@@ -207,26 +114,17 @@ vec3 kCubism(vec2 uv, float voff, float w){
   vec3 flat0 = kFlatWide(fuv0, 26.0);
   vec3 flat1 = kFlatWide(fuv1, 26.0);
 
-  /* mostly the wide flat average — the "synthetic/low-complexity" read —
-     with a little of the photo underneath at low-mid tiers, fading to
-     none by Heavy (ceiling raised per feedback that the source photo was
-     still clearly recognisable — w reaches 1.0 at Heavy now, so this goes
-     fully flat rather than topping out at 97%) so the dissolve has nothing
-     photographic left to fight */
+  /* mostly the wide flat average (the synthetic read), fading to fully flat
+     by Heavy so the dissolve has nothing photographic left to fight */
   vec3 c0 = mix(photo0, flat0, 0.45 + 0.55 * w);
   vec3 c1 = mix(photo1, flat1, 0.45 + 0.55 * w);
 
-  /* posterize — fewer levels and blended in much harder at the top end
-     (feedback wanted more abstractness, "not plain blur") so Heavy reads
-     as starkly quantized/graphic shading instead of a softened photo */
   vec3 post0 = floor(c0 * 3.2 + 0.5) / 3.2;
   vec3 post1 = floor(c1 * 3.2 + 0.5) / 3.2;
   c0 = mix(c0, post0, 0.35 + 0.60 * w);
   c1 = mix(c1, post1, 0.35 + 0.60 * w);
 
-  /* small, bounded radial highlight from the facet's own seed — reads as
-     a flat polygon lit from its centre, unlike the old plane-wave sheen
-     (unbounded, spans the whole frame, and is what caused the "V") */
+  /* small bounded radial highlight per facet (flat polygon lit from centre) */
   float gloss0 = 1.0 - smoothstep(0.0, 1.3, length(p - seed0));
   float gloss1 = 1.0 - smoothstep(0.0, 1.3, length(p - seed1));
   c0 += gloss0 * 0.06 * w;
@@ -235,8 +133,6 @@ vec3 kCubism(vec2 uv, float voff, float w){
   c0 = hueRot(c0, ((hash1(i0 * 2.0) - 0.5) * 0.30 + (br0 - 0.5) * 0.15) * w);
   c1 = hueRot(c1, ((hash1(i1 * 2.0) - 0.5) * 0.30 + (br1 - 0.5) * 0.15) * w);
 
-  /* wide, soft cross-fade between only the two closest facets — no hard
-     seam anywhere in the frame */
   float weight0 = smoothstep(-0.35, 0.35, d1 - d0);
   return mix(c1, c0, weight0);
 }
@@ -244,29 +140,16 @@ vec3 kCubism(vec2 uv, float voff, float w){
 vec3 sigColor(vec3 col, vec2 uv){
   float inten = uIntensity;
 
-  /* ---- world recession: sample a shrunk scene, dark around it ----
-     feedback: the k-hole should be SUDDEN — a small black margin through
-     Strong that only rapidly grows into the full k-hole right at the very
-     end of the slider, not a smooth ramp across the whole Strong->Heavy
-     range (which made Strong feel dominated by black instead of reading
-     as its own "psychedelic vibe" tier). Two-part curve: a shallow base
-     that's already at its own (small) ceiling by Strong, plus a steep
-     spike confined to the last ~15% of the slider that adds the rest —
-     same total magnitude at Heavy (0.15 + 0.43 = 0.58) as before. */
+  /* world recession: shrink the scene into a dark surround. Two-part curve
+     so the k-hole is sudden — a small margin through Strong, the rest spiking
+     in the last ~15% of the slider. */
   float recBase = uSig_recession * smoothstep(0.45, 0.85, inten) * 0.15;
   float recSpike = uSig_recession * smoothstep(0.85, 1.0, inten) * 0.43;
   float rec = recBase + recSpike;
   vec2 ruv = (uv - 0.5) / max(1.0 - rec, 1e-3) + 0.5;
-  /* boundary — user feedback: the old superellipse mask had too tight a
-     feather (a ~0.16-wide band) and stayed a static rounded rectangle; it
-     read as a hard geometric cutout, not a perceptual edge. This is now a
-     true physical circle (x scaled by uAspect so it isn't stretched into
-     an oval on wide frames), its radius perturbed by three slow, different-
-     rate angular harmonics so the boundary itself is an irregular blob that
-     continuously breathes in and out rather than a fixed shape, and the
-     feather is far wider (almost a full unit of falloff) so there is no
-     crisp edge anywhere between the visible painting and the surrounding
-     dark. */
+  /* boundary: a true circle (x scaled by aspect) whose radius breathes on
+     three angular harmonics, with a very wide feather so there's no crisp
+     edge between painting and dark */
   vec2 rc = (ruv - 0.5) * vec2(uAspect, 1.0) * 2.0;
   float rAng = atan(rc.y, rc.x);
   float rLen = length(rc);
@@ -275,31 +158,14 @@ vec3 sigColor(vec3 col, vec2 uv){
     + 0.06 * sin(uTime * 0.11 - rAng * 5.0 + 1.7)
     + 0.035 * sin(uTime * 0.26 + rAng * 2.0 + 4.1);
   float edgeR = rLen / max(breatheR, 1e-3);
-  /* BUG FIX: this circular crop used to apply unconditionally — a circle
-     inscribed in a rectangular frame always misses the four corners, so
-     even at Threshold/Light (recession = 0, nothing should be cropped at
-     all) the corners were permanently black wedges. That's both "50% of
-     the screen is black even at light dose" and the reported "V shapes"
-     (a circle clipped to a rectangle leaves exactly four V/triangle
-     wedges). Gated now by the same onset as recession itself, so at low
-     intensity `inside` is 1.0 everywhere (full rectangular frame, nothing
-     cropped) and the circular boundary only appears once recession is
-     actually shrinking the world. */
+  /* gate the crop by recession's own onset — otherwise a circle inscribed in
+     a rectangle blacks out the four corners even at Threshold */
   float boundaryW = smoothstep(0.42, 0.80, inten);
   float inside = mix(1.0, smoothstep(1.20, 0.45, edgeR), boundaryW);
   vec2 suv = clamp(ruv, 0.0, 1.0);
 
-  /* ---- dissolve pre-warp: before colour gives way to pattern, the whole
-     receded frame visibly breathes/displaces — a genuine 2D low-frequency
-     domain-warp (two independent fbm fields), not just edge-tangent creep,
-     because a colour-only dissolve left recognisable silhouettes (a lamp's
-     glow, a wall's outline) fully intact — the luminance/shape layout needs
-     to move too for the picture to actually stop being discernible, not
-     just recolour discernibly. Amplitude breathes on a slow LFO so it
-     reads as swelling/pulsing rather than a jump-cut. Onset pulled all the
-     way into Common now (feedback: "common and strong should have some of
-     the colorful aspects, but heavy should be the k-hole") — modest here,
-     well underway by Strong, full by Heavy. */
+  /* dissolve pre-warp: a real 2D domain-warp so silhouettes (lamp glow, wall
+     outline) move too, not just recolour. Onsets in Common, full by Heavy. */
   float dissW0 = uSig_dissolve * smoothstep(0.32, 0.85, inten);
   if (dissW0 > 0.004) {
     float t = uTime * 0.075;
@@ -308,65 +174,40 @@ vec3 sigColor(vec3 col, vec2 uv){
     suv = clamp(suv + (n - 0.5) * 0.11 * dissW0 * pulse, 0.0, 1.0);
   }
 
-  /* ---- vertical-divergence double vision — onset pushed back per
-     feedback (was waking up by Light, which is a big part of why the
-     render felt too strong far too early); this is now the ONLY diplopia
-     mechanism ketamine uses (the profile used to also carry the shared
-     generic horizontal doubleVision param, which duplicated this). Slow
-     amplitude pulse so the ghost visibly breathes rather than sitting as a
-     static, unmoving offset (another symptom of the "no movement at all"
-     feedback — a constant doubling reads as a print defect, not a live
-     effect). ---- */
+  /* vertical-divergence double vision (the only diplopia ketamine uses),
+     amplitude pulsing so the ghost breathes rather than sitting static */
   float voff = uSig_verticalDouble * (0.005 + 0.032 * smoothstep(0.32, 0.92, inten))
              * (0.72 + 0.28 * sin(uTime * 0.16));
   vec3 scn = 0.5 * (texture(uScene, suv).rgb
                   + texture(uScene, clamp(suv + vec2(0.0, voff), 0.0, 1.0)).rgb);
 
-  /* ---- painting flattening: smooth the weak-edge regions — onset pushed
-     back further per feedback ("reduce ketamine blur in common dose"):
-     was already at ~26% blend by Common, which combined with the shared
-     acuity/dof blur (see profile) read as too soft. Now negligible at
-     Common, arriving properly in Strong instead. ---- */
+  /* painting flattening: smooth weak-edge regions; strong edges lose some of
+     their protection at higher doses so the whole painting participates */
   float flatW = uSig_flatten * smoothstep(0.45, 0.90, inten);
   if (flatW > 0.004) {
     float em = edgeAt(suv).z;
-    /* hard edges (mortar lines, object outlines) used to stay fully crisp
-       forever — user feedback: they "still exist plainly" against
-       everything else swimming. At higher doses they now lose some of
-       that protection too, so the whole painting participates. */
     float edgeProtect = 1.0 - em * (1.0 - 0.55 * smoothstep(0.5, 1.0, inten));
     vec3 flat5 = 0.5 * (kFlat(suv) + kFlat(clamp(suv + vec2(0.0, voff), 0.0, 1.0)));
     scn = mix(scn, flat5, flatW * edgeProtect * 0.85);
-    /* local contrast crush — the "painting" look */
     scn = mix(scn, vec3(0.5) + (scn - vec3(0.5)) * 0.62, flatW * 0.65);
   }
 
-  /* ---- environmental cubism / scenery slicing — feedback: Strong needs
-     "much more psychedelic-esque effects" and shouldn't rely on the black
-     k-hole (now deliberately minimal at Strong, see recession above) to
-     carry that — onset pulled earlier and the ramp is faster so cubism
-     itself, not the black surround, is what makes Strong feel altered. */
+  /* environmental cubism — carries Strong so it doesn't rely on the black */
   float cubW = uSig_cubism * smoothstep(0.40, 0.80, inten);
   if (cubW > 0.004) {
     vec3 cub = kCubism(suv, voff, cubW);
     scn = mix(scn, cub, cubW);
   }
 
-  /* ---- dissolve colour: the cubist painting gets its first genuinely
-     colourful psychedelic touch — see kDissolve's header note for why
-     this replaced the old per-facet kShimmer. Onset pulled all the way
-     into Common (feedback: Common/Strong should show "some of the
-     colorful aspects", reserving the full k-hole exclusively for Heavy) —
-     a modest colour-shift by Common, strong by Strong, full replacement
-     only by Heavy. */
+  /* dissolve colour: first colourful touch in Common, full replacement by
+     Heavy (Common/Strong colourful, k-hole reserved for Heavy) */
   float dissolveW = uSig_dissolve * smoothstep(0.36, 0.88, inten);
   if (dissolveW > 0.004) {
     scn = mix(scn, kDissolve(suv, scn, dissolveW), dissolveW);
   }
 
-  /* ---- dark cold surround; k-hole deepens it toward black ---- */
-  /* same sudden two-part shape as recession above — Strong stays mildly
-     dim, Heavy alone gets the near-black k-hole surround */
+  /* dark cold surround; k-hole deepens it toward black on the same sudden
+     two-part shape as recession */
   float holeBase = uSig_kholeTunnel * smoothstep(0.45, 0.85, inten) * 0.30;
   float holeSpike = uSig_kholeTunnel * smoothstep(0.85, 1.0, inten) * 0.65;
   float hole = holeBase + holeSpike;

@@ -24,13 +24,9 @@ void main(){
     float op = 0.28 + 0.52 * uP_snow;              /* per-speck opacity */
     float pepper = smoothstep(dens, 0.0, h);       /* h near 0 → dark speck */
     float salt = smoothstep(1.0 - dens, 1.0, h);   /* h near 1 → light speck */
-    /* pepper specks used to just darken the pixel in place, which reads as
-       a flat black dot pasted over bright highlights. Instead, sample a
-       tiny distorted orb of the pixels around it (two opposite offset
-       taps) and darken THAT — in a blown-out highlight the neighbourhood
-       is bright too, so the speck comes out as a soft translucent smudge
-       instead of a hard black dot; in textured regions it reads as a
-       tiny lens-like refraction artifact rather than an ink stamp. */
+    /* darken a tiny distorted orb of the surrounding pixels rather than the
+       pixel in place — a soft translucent smudge over highlights instead of
+       a hard black dot pasted on top */
     if (pepper > 0.003) {
       vec2 px = 1.0 / uRes;
       float ang = hash12(cell + 3.7) * TAU;

@@ -3,19 +3,11 @@
    AWAKE → NODDING (lid gradient descends, blur + darkening ramp, frame
    sinks, time thickens) → SNAP (fast retract, brief over-bright) → AWAKE.
    Cycle shortens and deepens with intensity. Constant golden-hour cast +
-   pinhole vignette ride underneath. Two effects added per PsychonautWiki
-   research: (1) a constant, uncontrolled refocus/double-vision — PW: "at
-   high doses, opioids can cause the eyes un-focus and re-focus
-   uncontrollably... present no matter where one focuses" — reuses the
-   shared P2 doubleVision param rather than inventing a second mechanism;
-   (2) hypnagogic dream imagery at the deepest point of a Heavy nod — PW:
-   "one may experience feelings of hypnagogia during a state of 'nodding'
-   which is often accompanied by vivid dream-like visions." (3) a slow,
-   dreamy breathe/sway on the image's own structure and on the pinhole
-   boundary itself at higher doses (user feedback) — gentle and languid,
-   matching the warm nod identity rather than a nervous jitter.
-   Params: nodDepth, nodRate, goldenCast, pinhole, dreamImagery, sway
-   sources: psychonautwiki:opioids */
+   pinhole vignette ride underneath. Also: a constant uncontrolled refocus
+   (shared doubleVision), hypnagogic dream imagery at the deepest point of a
+   Heavy nod, and a slow languid breathe/sway on structure and the pinhole
+   boundary at higher doses.
+   Params: nodDepth, nodRate, goldenCast, pinhole, dreamImagery, sway */
 
 float nodPeriod(){ return mix(42.0, 9.0, smoothstep(0.1, 1.0, uIntensity) * uSig_nodRate); }
 
@@ -60,10 +52,8 @@ vec2 sigWarp(vec2 uv){
   /* the frame sinks ~2% while nodding */
   uv.y += nodPhase() * 0.02;
 
-  /* slow, dreamy breathe/sway on the image's own structure at higher
-     doses — languid, not nervous, matching the warm nod identity.
-     Strengthened per user feedback ("almost perfect, just needs a bit
-     more breathing/patterns"). */
+  /* slow, dreamy breathe/sway on structure at higher doses — languid, not
+     nervous, matching the warm nod identity */
   float bw = uSig_sway * smoothstep(0.4, 1.0, uIntensity);
   if (bw > 0.004) {
     vec2 tang = edgeTangent(uv);

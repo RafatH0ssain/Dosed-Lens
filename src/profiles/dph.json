@@ -21,7 +21,7 @@
     "Light: first dark specks in the corners of the frame; the faintest realistic drift on structure, barely there.",
     "Common: skitter clusters in periphery/dark regions + smoke wisps drifting; blur waves begin; drift/jitter on edges is now visible if you look for it — the room feels subtly, unnamably wrong rather than static.",
     "Strong: shadow faces fading in from the darkest regions, dissolving on approach; heavy blur waves; double vision begins (late curve); drift is unmistakable but stays realistic, never geometric.",
-    "Heavy: 'someone standing there' figure events, near-monochrome sickly cast, constant peripheral motion, constant double vision; a stronger, slower whole-room breathing pattern warp on top of the base drift, PLUS a genuine organic form-constant pattern riding the image's own texture (patternMask + symmetry, late curve, pushed further per repeated feedback for more psychedelic-like presence at Heavy) — reuses the shared P3 pattern pass, which runs before the desaturation step, so the pattern itself arrives already muted/near-monochrome rather than colorful, staying true to the deliriant identity (no rainbow)."
+    "Heavy: 'someone standing there' figure events, near-monochrome sickly cast, constant peripheral motion, constant double vision; a stronger slower whole-room breathing warp on top of the base drift, plus an organic form-constant pattern riding the image's texture (patternMask + symmetry, late curve) — the shared P3 pass runs before desaturation, so the pattern arrives already muted/near-monochrome rather than colorful, true to the deliriant identity (no rainbow)."
   ],
   "sources": ["psychonautwiki:diphenhydramine", "psychonautwiki:deliriant", "psychonautwiki:visual-effects"]
 }

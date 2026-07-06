@@ -1,24 +1,16 @@
 /* DPH / deliriant — "not colorful — *wrong*. Spiders in the corners and
    smoke in the room" ⚠ gated
-   No fractal/kaleidoscope geometry, no rainbow — deliberately. The
-   wrongness is tonal, peripheral, and — per PsychonautWiki — genuinely
-   structural: real anticholinergic reports include "drifting (melting,
-   breathing, morphing, flowing)... intricate yet faint, jittery and
-   flexible in motion, static in permanence, realistic in believability"
-   and double vision at moderate-heavy doses. sigWarp was previously a
-   no-op, which is why the image read as an unchanged overlay — this
-   fixes that with a faint, structure-driven drift (edge-tangent, like
-   LSD's, but far subtler/higher-frequency and colorless) rather than any
-   pattern or lattice.
-   sigColor:    darken, sickly sepia-green cast, slow 0.1 Hz blur *waves*
-   sigTemporal: shadow pareidolia — in the darkest image regions, barely-
-                visible faces fade in and dissolve when the mouse (gaze)
-                approaches
-   Skitter clusters, smoke wisps, and the Heavy "someone standing there"
-   figure events live in the CPU particle layer.
+   No fractal/kaleidoscope geometry, no rainbow — deliberately. The wrongness
+   is tonal, peripheral and structural: a faint colorless edge-tangent drift +
+   jitter (anticholinergic "melting/breathing... jittery, realistic"), plus a
+   stronger colorless whole-room breathe at Heavy.
+   sigColor:    darken, sickly sepia-green cast, slow 0.1 Hz blur waves
+   sigTemporal: shadow pareidolia — faces fade in in the darkest regions and
+                dissolve when the mouse (gaze) approaches
+   Skitter clusters, smoke wisps, and Heavy figure events live in the CPU
+   particle layer.
    Params: sepiaGreen, blurWave, skitter, smoke, pareidolia, figureEvents,
-   drift, heavyBreathe
-   sources: psychonautwiki:diphenhydramine */
+   drift, heavyBreathe */
 
 vec2 sigWarp(vec2 uv){
   float w = uSig_drift * smoothstep(0.12, 0.85, uIntensity);
@@ -36,13 +28,9 @@ vec2 sigWarp(vec2 uv){
     uv += j * w * 0.0016;
   }
 
-  /* Heavy-only: a stronger, slower, whole-room "breathing" pattern warp —
-     user feedback (repeated across two rounds) wanted DPH more
-     psychedelic-like at Heavy, WITHOUT color (this stays entirely inside
-     sigWarp; sigColor's tone is untouched, no saturation/rainbow added).
-     Bigger and slower than the drift above, and reaches past strong edges
-     into the room broadly. Amplitude pushed further and wakes up earlier
-     since two prior passes still weren't strong enough. */
+  /* Heavy-only: a stronger, slower whole-room breathing warp (colorless —
+     more psychedelic-like at Heavy without any hue/rainbow), reaching past
+     strong edges into the room broadly */
   float hw = uSig_heavyBreathe * smoothstep(0.5, 1.0, uIntensity);
   if (hw > 0.004) {
     vec2 tang2 = edgeTangent(uv);

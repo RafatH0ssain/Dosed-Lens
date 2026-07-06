@@ -1,30 +1,20 @@
 /* MDMA — "lights bloom into stars and your eyes wiggle"
-   sigWarp:  nystagmus — episodic, gently-eased horizontal micro-
-             oscillation in short bursts with randomized onsets (never
-             constant); kept soft/subtle per user feedback rather than a
-             sharp snap.
+   sigWarp:  nystagmus — episodic, gently-eased horizontal micro-oscillation
+             in short bursts with randomized onsets (never constant)
    sigColor: magenta-biased warmth + fine shimmer on bright regions
-             (starbursts + halos come from the shared P7/P8 params, pushed
-             harder at Heavy). A faint, dim, monotone blue-grey geometric
-             layer rides the shared pattern pass at Strong+ — PsychonautWiki
-             describes MDMA geometry as "more similar to psilocin than LSD
-             ...intricate, abstract, organic, dimly lit, primarily monotone
-             blues and greys" — kept deliberately low-weight, a hint, not a
-             transformation.
-   Heavy: shared late doubleVision + low-weight peripheral shadow flicker
-   via the particle layer (shadowFlicker param).
-   Params: starRays, magenta, shimmer, nystagmus, shadowFlicker
-   sources: psychonautwiki:mdma */
+             (starbursts + halos from the shared P7/P8 params, harder at
+             Heavy). A faint dim monotone blue-grey geometric layer rides the
+             shared pattern pass at Strong+ (PW: MDMA geometry is psilocin-
+             like, dim, monotone blues/greys) — a hint, not a transformation.
+   Heavy: shared late doubleVision + low-weight peripheral shadow flicker.
+   Params: starRays, magenta, shimmer, nystagmus, shadowFlicker */
 
 float mdmaBurst(){
-  /* each 2.2 s slot may contain one soft wiggle burst */
+  /* each 2.2 s slot may contain one soft wiggle burst, wide attack/release */
   float slot = floor(uTime / 2.2);
   float tIn = fract(uTime / 2.2);
   float onset = 0.1 + 0.5 * hash1(slot * 3.71);
   float gate = step(hash1(slot * 7.13), smoothstep(0.3, 1.0, uIntensity) * 0.75);
-  /* wide, soft attack/release — an eased drift into and out of the wiggle
-     rather than a sharp snap; widened further per user feedback (still
-     too quick) */
   return gate * smoothstep(onset, onset + 0.22, tIn)
               * (1.0 - smoothstep(onset + 0.30, onset + 0.55, tIn));
 }
@@ -32,9 +22,7 @@ float mdmaBurst(){
 vec2 sigWarp(vec2 uv){
   float b = mdmaBurst() * uSig_nystagmus;
   if (b > 0.004) {
-    /* slowed further per user feedback — still felt abrupt at 5 Hz;
-       a gentler 3.2 Hz wiggle at lower amplitude */
-    uv.x += sin(uTime * TAU * 3.2) * 0.0011 * b;
+    uv.x += sin(uTime * TAU * 3.2) * 0.0011 * b;   /* gentle 3.2 Hz wiggle */
   }
   return uv;
 }
@@ -52,8 +40,7 @@ vec3 sigColor(vec3 col, vec2 uv){
     col *= 1.0 + d * 0.05 * sh * smoothstep(0.45, 0.75, l);
   }
 
-  /* Heavy: extra color lift so the starburst/bloom stack reads as a real
-     peak rather than "same as Strong, slightly more" */
+  /* Heavy: extra color lift so the starburst/bloom stack reads as a real peak */
   float heavyW = smoothstep(0.75, 1.0, uIntensity);
   col = mix(col, vec3(0.5) + (col - vec3(0.5)) * 1.14, heavyW * 0.6);
   col *= 1.0 + heavyW * 0.05;

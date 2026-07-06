@@ -119,7 +119,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
   constructor(
     private ctx: GLContext,
     private passSources: PassSource[],
-    private analysisBody: string,
+    analysisBody: string,
     private common: string,
     flowBody: string,
   ) {

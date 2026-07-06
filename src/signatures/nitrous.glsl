@@ -1,35 +1,15 @@
 /* Nitrous — "everything throbs in waves, echoing, warm and dim"
-   Identity: a slow global throb LFO under a ~25 s decay-and-restart
-   envelope (the short arc of the experience). Reworked per PsychonautWiki:
-   documented nitrous effects are acuity suppression to the point of
-   blindness, double vision, frame-rate/pattern-recognition suppression,
-   and — the distinctive one — "a static wall of geometry... simplistic,
-   organic, colourful, soft and blurred, based on complex interlocking
-   circles" appearing in front of vision at higher doses. Double vision and
-   frame-lag reuse the shared P2/P5 params (uP_doubleVision/uP_stutter).
-   Rewritten a third time after user feedback that it was STILL "literally
-   strobing, not smooth at all" with jittery-feeling vibration at 1.1 Hz:
-   unifying the phase wasn't enough — any full-field luminance/blur pulse
-   reads as "flashing" almost regardless of frequency once the delta
-   between trough and peak is large, because several qualities (sharpness,
-   brightness, glow) all flip together into a visibly different state.
-   This pass leans hard the other way: the fast-channel deltas (luminance,
-   blur, glow) are now small — barely-there — and slowed further (1.1 ->
-   0.55 Hz, a good two-second breath), while the WARP (pure zoom-breathing,
-   no luminance/contrast change at all, so it cannot read as "flashing")
-   carries most of the felt intensity instead.
-   sigWarp:     the dominant carrier now — real, larger zoom-breathing,
-                plus (user feedback) a geometry-gradient spatial distortion
-                at Strong+ so the rings actually displace the image rather
-                than only tinting it, and a bespoke double vision tied to
-                the SAME wave phase (smoother than the generic shared
-                doubleVision, which oscillates on its own asynchronous
-                0.3 Hz clock and could beat oddly against this wave)
-   sigColor:    luminance + blur + glow all riding the SAME wave phase, but
-                each cut to a small fraction of what they were
+   Identity: a slow global throb LFO under a ~25 s decay-and-restart envelope.
+   The felt intensity lives mostly in a pure zoom-breathing WARP (no luminance
+   change, so it can't read as flashing); the fast luminance/blur/glow channels
+   are kept small and share one wave phase. At higher doses a soft "wall of
+   geometry" (interlocking circles) breathes in with the envelope. Double vision
+   and frame-lag reuse the shared params.
+   sigWarp:     dominant carrier — zoom-breathing + a geometry-gradient displace
+                at Strong+ and a phase-locked double vision
+   sigColor:    luminance + blur + glow riding the same wave phase, each small
    sigTemporal: flange — blend the history ring one throb period back
-   Params: throb, envelope, flange, geomDistort, diplopia
-   sources: psychonautwiki:nitrous-oxide */
+   Params: throb, envelope, flange, geomDistort, diplopia */
 
 const float N2O_HZ = 0.55;
 
@@ -66,16 +46,12 @@ float n2oGeom(vec2 p){
 }
 
 vec2 sigWarp(vec2 uv){
-  /* the dominant carrier of the throb now: a real, larger zoom-breathe.
-     Pure geometry, no luminance/contrast change, so it cannot read as
-     "flashing" no matter how large — this is where the felt intensity
-     should live instead of in the color channel. */
+  /* dominant carrier of the throb: a zoom-breathe. Pure geometry, no
+     luminance change, so it can't read as flashing at any amplitude. */
   float s = 1.0 + n2oWave() * 0.085;
   uv = (uv - 0.5) / s + 0.5;
 
-  /* Strong+: the geometry field now visibly displaces the image instead
-     of only tinting it — real spatial "psychedelic" distortion, riding
-     the slow envelope so it breathes in rather than snapping on */
+  /* Strong+: the geometry field displaces the image, riding the slow envelope */
   float distW = uSig_geomDistort * smoothstep(0.5, 1.0, uIntensity) * (0.3 + 0.7 * n2oEnv());
   if (distW > 0.004) {
     vec2 asp = vec2(uAspect, 1.0);
@@ -92,11 +68,7 @@ vec2 sigWarp(vec2 uv){
 vec3 sigColor(vec3 col, vec2 uv){
   float wave = n2oWave(); /* 0..1, single shared phase for everything below */
 
-  /* double vision — tied to the SAME wave phase as everything else so it
-     grows/fades in sync rather than as an independent, asynchronous
-     oscillation. Replaces the generic shared doubleVision param, whose
-     own 0.3 Hz clock could beat unpredictably against this wave and read
-     as an abrupt, uncorrelated jump rather than a smooth transition. */
+  /* double vision — tied to the same wave phase so it grows/fades in sync */
   float dv = uSig_diplopia * smoothstep(0.3, 0.85, uIntensity) * (0.25 + 0.75 * wave);
   if (dv > 0.004) {
     float off = dv * 0.020;
@@ -104,11 +76,10 @@ vec3 sigColor(vec3 col, vec2 uv){
     col = mix(col, mix(col, dvSample, 0.5), min(dv * 1.6, 1.0));
   }
 
-  /* luminance — barely-there now; the warp carries the throb instead */
+  /* luminance — small; the warp carries the throb instead */
   col *= 1.0 + (wave - 0.5) * 0.10;
 
-  /* blur pulse: small and slow — this stacked with luminance/whiteout is
-     what read as "vibration"/strobing before, so it's cut hard */
+  /* blur pulse: small and slow */
   float bl = wave * 0.22;
   if (bl > 0.02) {
     vec2 px = 5.0 * bl / uRes;
@@ -118,19 +89,16 @@ vec3 sigColor(vec3 col, vec2 uv){
     col = mix(col, soft, bl);
   }
 
-  /* warm dim, strongest mid-envelope (slow, ~25s arc — unrelated to the
-     fast throb, so not part of the flashing complaint) */
+  /* warm dim, strongest mid-envelope */
   float env = n2oEnv();
   float mid = env * (1.0 - env) * 4.0;
   col *= mix(vec3(1.0), vec3(0.93, 0.87, 0.78), mid * 0.5 * smoothstep(0.2, 0.8, uIntensity));
 
-  /* Heavy: a very faint glow at wave peaks — not a strobe cue at all */
+  /* Heavy: a very faint glow at wave peaks */
   float wo = smoothstep(0.75, 1.0, uIntensity) * wave;
   col = mix(col, vec3(1.05, 1.02, 0.96), wo * 0.08);
 
-  /* the geometry wall — builds through the envelope, strongest at
-     envelope peaks and only at higher doses (slow ~25s arc, not the
-     fast throb, so it doesn't contribute to flashing) */
+  /* geometry wall — builds through the envelope, higher doses only */
   float geomW = uSig_geometry * smoothstep(0.5, 1.0, uIntensity) * (0.30 + 0.70 * env);
   if (geomW > 0.004) {
     vec2 asp = vec2(uAspect, 1.0);

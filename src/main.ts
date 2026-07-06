@@ -296,7 +296,7 @@ function frame(now: number): void {
   particleCfg.skitter = (sig.skitter ?? 0) * smooth01((inten - 0.28) / 0.3);
   particleCfg.smoke = (sig.smoke ?? 0) * smooth01((inten - 0.35) / 0.35);
   particleCfg.figure = (sig.figureEvents ?? 0) * smooth01((inten - 0.8) / 0.2);
-  if (!state.paused) particles.update(dt, state.time, inten, state.mouse, particleCfg);
+  if (!state.paused) particles.update(dt, inten, state.mouse, particleCfg);
 
   graph.render(frameState);
 

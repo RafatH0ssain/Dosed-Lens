@@ -1,34 +1,15 @@
 /* Meth (high-dose / sleep-deprived) — "too sharp, snowing, movement in
-   the corners"
-   sigWarp:  texture crawl — granular 1–2 px churn ONLY where edge
-             magnitude is low (flat walls crawl, objects hold still)
-   sigColor: harsh local contrast on top of the shared unsharp/desat/snow;
-             plus two effects added per PsychonautWiki research (meth's own
-             page explicitly does NOT document visual snow/tracers/
-             geometry as intrinsic effects — those stay purely from the
-             general VSS statistics used for `snow` — but it DOES document
-             "vibrating vision": eyeballs "spontaneously wiggle back and
-             forth in rapid motion" at high doses, and rare
-             "Transformations" (misreading one object as another) during
-             extended wakefulness/high doses. Both give Strong/Heavy a more
-             restless, chaotic feel without inventing psychedelic geometry
-             that wouldn't be accurate to the substance.
-   Peripheral shadow events + Heavy silhouettes come from the particle
-   layer (shadowEvents / silhouette params), which flee the mouse.
-   Also added (user feedback: Strong/Heavy needed more distortion, NOT
-   color/rainbow): a nervous, fast pattern-breathe on the image's own
-   edges/textures at Strong+ — PW documents "visual drifting... usually
-   subtle... delirious in nature" at elevated doses; kept fast/jittery
-   rather than a slow psychedelic swell so it reads as restless vigilance,
-   not a trip.
+   the corners". No psychedelic geometry — PW doesn't document it for meth.
+   sigWarp:  texture crawl on flat regions only (walls crawl, objects hold);
+             a nervous fast pattern-breathe on edges/textures at Strong+
+   sigColor: harsh vigilant unsharp/contrast; "vibrating vision" (constant
+             fast double-image) and rare Heavy-only "Transformations"
+   Peripheral shadow events + Heavy silhouettes come from the particle layer.
    Params: crawl, shadowEvents, silhouette, harshContrast, vibrate,
-   transform, breathe
-   sources: psychonautwiki:methamphetamine */
+   transform, breathe */
 
-/* rare "Transformations" gate — a brief, sparse window (~p=0.02/s, meant
-   to be used already scaled to Heavy-only outside) where a high-edge
-   region gets a brief spatial mis-sample, like an object looked wrong for
-   an instant */
+/* rare "Transformations" gate — a brief sparse window where a high-edge
+   region gets a spatial mis-sample (an object looked wrong for an instant) */
 float methTransformGate(){
   float slot = floor(uTime);
   float has = step(1.0 - 0.022, hash1(slot * 5.19));
@@ -53,12 +34,8 @@ vec2 sigWarp(vec2 uv){
     uv += churn * (2.4 / uRes) * flatness * w;
   }
 
-  /* nervous pattern-breathe: fast, jittery structural pulse ON the edges/
-     textures themselves (opposite mask from crawl — this rides patterns,
-     crawl rides flat walls). Strengthened per user feedback (v1 was too
-     weak to read) — wakes up earlier, much higher amplitude, and layers a
-     second faster octave so it reads as restless bristling rather than a
-     single gentle sway. */
+  /* nervous pattern-breathe: fast jittery structural pulse on edges/textures
+     (opposite mask from crawl), two octaves so it reads as restless bristling */
   float bw = uSig_breathe * smoothstep(0.35, 0.9, uIntensity);
   if (bw > 0.004) {
     vec2 tang = edgeTangent(uv);
@@ -80,9 +57,7 @@ vec3 sigColor(vec3 col, vec2 uv){
   float hd = lumAt(uv, 0.0) - lumAt(uv, 3.0);
   col += clamp(vec3(hd), -0.45, 0.45) * w * 1.05;
 
-  /* harsh local contrast, and a LIFT (over-bright vigilance) rather than
-     darkening — bumped further per user feedback ("spot on, just a bit
-     less dark") on top of trimming coolCast/vignette in the profile */
+  /* harsh local contrast with a lift (over-bright vigilance, not darkening) */
   col = vec3(0.5) + (col - vec3(0.5)) * (1.0 + w * 0.6);
   col += w * 0.07;
 

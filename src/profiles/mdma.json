@@ -22,8 +22,8 @@
   "tierNotes": [
     "Threshold: lights slightly juicier — halos a touch wider than the lens should give; faint pattern-recognition lift (early sharpenHalo).",
     "Light: clear halos + magenta-leaning warmth.",
-    "Common: starbursts on every light source + first episodic eye-wiggle bursts, eased in and out rather than snapping (the signature's own smooth nystagmus wave — the shared per-frame `jitter` param is kept nearly off, since real per-frame random position noise reads as violent screen-shake, not nystagmus, and that was the actual cause of user-reported 'violent shaking' across three earlier tuning passes on the wrong mechanism).",
-    "Strong: constant fine shimmer on bright regions, frequent slow-eased wiggle; real image distortion wakes up — gentle breathing/flowWarp on top of a dim monotone blue-grey geometric hint riding textures (patternMask/symmetry, psilocin-like rather than LSD-like per PsychonautWiki, upgraded from a bare hint to something you can clearly see if you look).",
+    "Common: starbursts on every light source + first episodic eye-wiggle bursts, eased in and out rather than snapping (the signature's own smooth nystagmus wave; the shared per-frame `jitter` param is kept nearly off, since per-frame random position noise reads as screen-shake, not nystagmus).",
+    "Strong: constant fine shimmer on bright regions, frequent slow-eased wiggle; real image distortion wakes up — gentle breathing/flowWarp on top of a dim monotone blue-grey geometric hint riding textures (patternMask/symmetry, psilocin-like rather than LSD-like).",
     "Heavy: doubled starbursts (late doubleVision), stronger contrast/color lift so the bloom stack peaks properly, slow soft judder, peripheral shadow-flicker at low weight, breathing/geometry distortion fully present alongside the halos/starbursts — MDMA's own organic, dim, blue-grey flavor rather than LSD's sharp fractal."
   ],
   "sources": ["psychonautwiki:mdma", "psychonautwiki:visual-effects"]

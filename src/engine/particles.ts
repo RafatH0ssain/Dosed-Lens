@@ -109,9 +109,7 @@ void main(){
     col = vec3(0.42, 0.42, 0.44);
   } else {
     /* humanoid silhouette: head circle + body capsule, heavy soft edge.
-       Three variants picked per-particle from vSeed ("different types of
-       figures" per user feedback) instead of always the same standing
-       pose — standing straight, hunched forward, and a lower crouch. */
+       Three poses picked per-particle from vSeed: standing, hunched, crouch. */
     vec2 q = vLuv * vec2(1.0, 2.6); /* undo quad stretch → SDF space */
     float variant = mod(vSeed, 3.0);
     vec2 headOff = vec2(0.0, -1.55);
@@ -254,7 +252,7 @@ export class ParticleLayer {
     p.x = bx; p.y = by;
   }
 
-  update(dt: number, time: number, intensity: number, mouse: readonly [number, number], cfg: ParticleConfig): void {
+  update(dt: number, intensity: number, mouse: readonly [number, number], cfg: ParticleConfig): void {
     // ---- spawning ----
     if (cfg.shadow > 0.01 && Math.random() < cfg.shadow * intensity * 2.6 * dt) {
       const p = this.spawn();
@@ -270,8 +268,7 @@ export class ParticleLayer {
         p.vy = Math.sin(a) * v;
       }
     }
-    // rare humanoid silhouettes, p ≈ 0.032/s at full weight (nudged up
-    // slightly per user feedback: "slightly more shadows")
+    // rare humanoid silhouettes, p ≈ 0.032/s at full weight
     if (cfg.silhouette > 0.01 && Math.random() < 0.032 * cfg.silhouette * dt) {
       const p = this.spawn();
       if (p) {
