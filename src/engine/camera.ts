@@ -18,8 +18,11 @@ const MESSAGES: Record<CameraErrorKind, string> = {
   unknown: 'Could not start the camera.',
 };
 
+export type Facing = 'user' | 'environment';
+
 export class Camera {
   private stream: MediaStream | null = null;
+  facing: Facing = 'user';
   readonly video: HTMLVideoElement;
 
   constructor() {
@@ -46,25 +49,45 @@ export class Camera {
     return this.video.videoHeight;
   }
 
-  async start(deviceId?: string): Promise<void> {
+  async start(facing: Facing = this.facing): Promise<void> {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new CameraError('insecure', MESSAGES.insecure);
     }
     this.stop();
-    const video: MediaTrackConstraints = deviceId
-      ? { deviceId: { exact: deviceId } }
-      : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } };
+    // `ideal` (not `exact`) so a device without a back camera still resolves
+    const video: MediaTrackConstraints = {
+      facingMode: { ideal: facing },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    };
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video, audio: false });
     } catch (e) {
       throw toCameraError(e);
     }
+    this.facing = facing;
     this.stream = stream;
     this.video.srcObject = stream;
     await this.video.play().catch(() => {}); // autoplay policy: muted video is fine
     // resolve only once the first frame is decodable, so callers can size the texture
     await waitReady(this.video);
+  }
+
+  /** Switch between the front and back camera (restarts the stream). */
+  async flip(): Promise<void> {
+    await this.start(this.facing === 'user' ? 'environment' : 'user');
+  }
+
+  /** Number of video input devices (used to decide whether flipping is possible). */
+  static async count(): Promise<number> {
+    if (!navigator.mediaDevices?.enumerateDevices) return 0;
+    try {
+      const d = await navigator.mediaDevices.enumerateDevices();
+      return d.filter((x) => x.kind === 'videoinput').length;
+    } catch {
+      return 0;
+    }
   }
 
   stop(): void {

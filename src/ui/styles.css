@@ -7,8 +7,13 @@
   --warn:#f2a24b;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow:hidden;background:#000;font-family:ui-monospace,'SF Mono','Cascadia Mono',Menlo,monospace}
-canvas#c{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+html,body{
+  height:100%;overflow:hidden;background:#000;
+  font-family:ui-monospace,'SF Mono','Cascadia Mono',Menlo,monospace;
+  overscroll-behavior:none;-webkit-tap-highlight-color:transparent;
+}
+/* touch-action:none — dragging on the canvas drives effects, never scroll/zoom */
+canvas#c{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
 
 #panel{
   position:fixed;top:16px;left:16px;width:288px;max-height:calc(100vh - 32px);
@@ -98,6 +103,9 @@ input[type=range]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;bac
 .mirror-row.show{display:flex}
 .mirror-row input{accent-color:var(--accent);cursor:pointer}
 
+.cam-flip-row{display:none}
+.cam-flip-row.show{display:flex}
+
 /* per-effect override drawer */
 .overrides{margin-top:12px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .ov-head{
@@ -143,4 +151,39 @@ kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font-size:9px}
 #gate p{font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:16px}
 #gate .row{margin-top:0}
 
-@media (max-width:640px){ #panel{width:calc(100vw - 32px)} }
+/* persistent controls toggle (◧) — the only way to reopen on touch devices */
+#menu{
+  position:fixed;top:calc(12px + env(safe-area-inset-top));right:14px;z-index:11;
+  width:40px;height:40px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel);backdrop-filter:blur(14px);color:var(--ink);
+  font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:color .18s,border-color .18s;
+}
+#menu:hover{color:var(--accent);border-color:var(--ink)}
+#menu.on{color:var(--accent)}
+
+/* ---- mobile: panel becomes a bottom sheet, canvas stays visible above ---- */
+@media (max-width:640px){
+  #panel{
+    top:auto;bottom:0;left:0;right:0;width:100%;max-height:72dvh;
+    border-radius:16px 16px 0 0;
+    padding:6px 18px calc(16px + env(safe-area-inset-bottom));
+    transition:transform .32s cubic-bezier(.4,0,.2,1),opacity .32s;
+  }
+  #panel::before{ /* drag-handle affordance */
+    content:'';display:block;width:36px;height:4px;border-radius:2px;
+    background:var(--line);margin:6px auto 10px;
+  }
+  #panel.hidden{transform:translateY(100%);opacity:1}
+  .sub{display:none} /* reclaim vertical space */
+  #tap{display:none} /* the ◧ button is the affordance on touch */
+  /* finger-sized tap targets */
+  .pick{gap:6px}
+  .pick button{font-size:11px;padding:11px 9px}
+  .tier-stops span{font-size:9px;padding:7px 2px}
+  input[type=range]{height:4px}
+  input[type=range]::-webkit-slider-thumb{width:22px;height:22px}
+  input[type=range]::-moz-range-thumb{width:22px;height:22px}
+  .row button,.row label.btn{padding:13px 0;font-size:11px}
+  .mirror-row{padding:6px 0}
+}

@@ -27,6 +27,7 @@ export interface PanelCallbacks extends ToggleActions, OverrideCallbacks {
       the result via setWebcam / setWebcamError */
   onWebcam(): void;
   onMirror(on: boolean): void;
+  onFlip(): void;
 }
 
 export interface Panel {
@@ -36,6 +37,10 @@ export interface Panel {
   setActiveSample(name: string | null): void;
   /** Reflect webcam on/off state (button highlight + mirror row visibility). */
   setWebcam(on: boolean): void;
+  /** Show/hide the flip-camera control (only when >1 camera exists). */
+  setFlipAvailable(available: boolean): void;
+  /** Reflect the mirror checkbox state (front cam on, back cam off). */
+  setMirror(on: boolean): void;
   /** Show a camera error message, or clear it with null. */
   setWebcamError(msg: string | null): void;
   /** Select a substance through the same gate flow as clicking the picker. */
@@ -62,6 +67,7 @@ export function createPanel(
         <label class="btn">load image<input type="file" accept="image/*" id="file"></label>
         <button class="btn" id="webcam">webcam</button>
       </div>
+      <div class="row cam-flip-row" id="flip-row"><button id="flip">flip camera</button></div>
       <label class="mirror-row" id="mirror-row"><input type="checkbox" id="mirror" checked> mirror (selfie view)</label>
       <div class="note" id="cam-err"></div>
       <div id="actions"></div>
@@ -69,6 +75,7 @@ export function createPanel(
       <div class="hint"><kbd>H</kbd> panel · <kbd>space</kbd> pause · <kbd>1–5</kbd> tiers · drop an image anywhere</div>
     </div>
     <div id="tap">press H for controls</div>
+    <button id="menu" aria-label="toggle controls">◧</button>
     <div id="fps"></div>
     <div id="gate">
       <div class="box">
@@ -140,9 +147,11 @@ export function createPanel(
   const webcamBtn = root.querySelector<HTMLButtonElement>('#webcam')!;
   const mirrorRow = root.querySelector<HTMLElement>('#mirror-row')!;
   const mirrorBox = root.querySelector<HTMLInputElement>('#mirror')!;
+  const flipRow = root.querySelector<HTMLElement>('#flip-row')!;
   const camErr = root.querySelector<HTMLElement>('#cam-err')!;
   webcamBtn.addEventListener('click', () => cb.onWebcam());
   mirrorBox.addEventListener('change', () => cb.onMirror(mirrorBox.checked));
+  root.querySelector<HTMLButtonElement>('#flip')!.addEventListener('click', () => cb.onFlip());
   // drag & drop anywhere
   addEventListener('dragover', (e) => e.preventDefault());
   addEventListener('drop', (e) => {
@@ -151,12 +160,19 @@ export function createPanel(
     if (f && f.type.startsWith('image/')) cb.onUpload(f);
   });
 
-  // panel visibility
+  // panel visibility — H key (desktop) or the ◧ button (always, incl. touch)
   const tap = root.querySelector<HTMLElement>('#tap')!;
+  const menuBtn = root.querySelector<HTMLButtonElement>('#menu')!;
+  function togglePanel(): void {
+    const hidden = panel.classList.toggle('hidden');
+    tap.classList.toggle('show', hidden);
+    menuBtn.classList.toggle('on', !hidden);
+  }
+  menuBtn.classList.add('on'); // panel starts open
+  menuBtn.addEventListener('click', togglePanel);
   addEventListener('keydown', (e) => {
-    if (e.key === 'h' || e.key === 'H') {
-      const hidden = panel.classList.toggle('hidden');
-      tap.classList.toggle('show', hidden);
+    if ((e.key === 'h' || e.key === 'H') && !(e.target instanceof HTMLInputElement)) {
+      togglePanel();
     }
   });
 
@@ -184,7 +200,14 @@ export function createPanel(
       webcamBtn.classList.toggle('on', on);
       webcamBtn.textContent = on ? 'stop webcam' : 'webcam';
       mirrorRow.classList.toggle('show', on);
+      if (!on) flipRow.classList.remove('show');
       if (on) camErr.classList.remove('show');
+    },
+    setFlipAvailable(available) {
+      flipRow.classList.toggle('show', available);
+    },
+    setMirror(on) {
+      mirrorBox.checked = on;
     },
     setWebcamError(msg) {
       camErr.textContent = msg ? '⚠ ' + msg : '';

@@ -130,6 +130,9 @@ const panel = createPanel(document.getElementById('app')!, profiles, {
     mirrorPref = on;
     if (graph.isLive) graph.mirror = on;
   },
+  onFlip() {
+    flipCamera();
+  },
   onPause(p) {
     state.paused = p;
   },
@@ -147,6 +150,11 @@ const panel = createPanel(document.getElementById('app')!, profiles, {
 });
 createCompare(canvas, () => state.split, (v) => (state.split = v));
 
+// no canvas recording (e.g. some iOS versions) → drop the rec button; PNG stays
+if (!WebMRecorder.supported()) {
+  document.querySelector<HTMLButtonElement>('[data-a="webm"]')?.remove();
+}
+
 // live-source (webcam) preferences + throttle clocks
 let mirrorPref = true;
 let liveEdgeAcc = 0; // P1 (edge/lum) re-analysis timer
@@ -163,12 +171,36 @@ async function startWebcam(): Promise<void> {
     return;
   }
   graph.setLiveSource(camera.video);
-  graph.mirror = mirrorPref;
+  applyFacing(); // front cam → mirrored, back cam → not
   state.image = null; // a live feed isn't a permalinkable image
   panel.setActiveSample(null);
   panel.setWebcam(true);
   liveEdgeAcc = liveStatsAcc = 999; // analyze the first live frame immediately
   syncHash();
+  // reveal the flip control only when a second camera actually exists
+  Camera.count().then((n) => panel.setFlipAvailable(n > 1));
+}
+
+async function flipCamera(): Promise<void> {
+  if (!graph.isLive) return;
+  panel.setWebcamError(null);
+  try {
+    await camera.flip();
+  } catch (e) {
+    panel.setWebcamError(e instanceof CameraError ? e.message : 'Could not switch camera.');
+    return;
+  }
+  graph.setLiveSource(camera.video); // force a clean re-alloc (dims may change)
+  applyFacing();
+  liveEdgeAcc = liveStatsAcc = 999;
+}
+
+// front camera reads as a mirror (selfie); back camera shows the world as-is
+function applyFacing(): void {
+  const front = camera.facing === 'user';
+  mirrorPref = front;
+  graph.mirror = front;
+  panel.setMirror(front);
 }
 
 function stopWebcam(): void {
@@ -229,10 +261,33 @@ addEventListener('keydown', (e) => {
     panel.setIntensity(state.intensity);
   }
 });
+// Pointer → effect focus (LSD fold centre, particle gaze). On desktop the
+// mouse drives it on hover. On touch there is no hover: the effect stays
+// centred, follows the finger while held, and eases back to centre on release.
+let touchActive = false;
+function setPointer(clientX: number, clientY: number): void {
+  state.mouse[0] = clientX / innerWidth;
+  state.mouse[1] = 1 - clientY / innerHeight;
+}
 addEventListener('pointermove', (e) => {
-  state.mouse[0] = e.clientX / innerWidth;
-  state.mouse[1] = 1 - e.clientY / innerHeight;
+  if (e.target !== canvas) return; // ignore moves over the panel/UI
+  if (e.pointerType === 'touch' && !touchActive) return;
+  setPointer(e.clientX, e.clientY);
 });
+addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch' && e.target === canvas) {
+    touchActive = true;
+    setPointer(e.clientX, e.clientY);
+  }
+});
+function endTouch(e: PointerEvent): void {
+  if (e.pointerType !== 'touch') return;
+  touchActive = false;
+  state.mouse[0] = 0.5; // return the focus to screen centre
+  state.mouse[1] = 0.5;
+}
+addEventListener('pointerup', endTouch);
+addEventListener('pointercancel', endTouch);
 // never leave the camera running after the page goes away
 addEventListener('pagehide', () => camera.stop());
 
@@ -395,9 +450,31 @@ function frame(now: number): void {
 
   fpsFrames++;
   if (now - fpsLast > 500) {
-    setFPS(`${Math.round((fpsFrames * 1000) / (now - fpsLast))} fps`);
+    const fps = (fpsFrames * 1000) / (now - fpsLast);
+    setFPS(`${Math.round(fps)} fps`);
+    adaptQuality(fps);
     fpsFrames = 0;
     fpsLast = now;
+  }
+}
+
+// Adaptive render-scale: drop internal resolution when the framerate sags,
+// recover slowly when it's smooth. Held steady while recording so the encoder
+// never sees a resolution change. Runs on the ~2/s fps tick.
+let qualityCooldown = 0;
+function adaptQuality(fps: number): void {
+  if (recorder.recording) return;
+  if (qualityCooldown > 0) {
+    qualityCooldown--;
+    return;
+  }
+  const s = ctx.renderScale;
+  if (fps < 45 && s > 0.5) {
+    ctx.setRenderScale(s - 0.15); // back off fast when struggling
+    qualityCooldown = 4; // ~2 s before the next step
+  } else if (fps > 57 && s < 1) {
+    ctx.setRenderScale(s + 0.08); // creep back up when there's headroom
+    qualityCooldown = 6;
   }
 }
 
