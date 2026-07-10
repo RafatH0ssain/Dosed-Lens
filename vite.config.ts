@@ -5,4 +5,5 @@ import { defineConfig } from 'vite';
 // (they must — signature modules swap per substance). Zero dependencies.
 export default defineConfig({
   build: { target: 'es2022' },
+  plugins: [],
 });
