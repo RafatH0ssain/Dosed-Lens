@@ -21,6 +21,7 @@ import { TIER_STOPS } from './engine/curves';
 import { analyzeImage } from './engine/domcolors';
 import { ParticleLayer, ParticleConfig } from './engine/particles';
 import { WebMRecorder, savePNG } from './engine/recorder';
+import { Camera, CameraError } from './engine/camera';
 import { createPanel, setFPS } from './ui/panel';
 import { createCompare } from './ui/compare';
 
@@ -62,6 +63,7 @@ const graph = new Graph(ctx, PASSES, analysisFrag, common, flowFrag);
 const profiles = loadProfiles();
 const resolver = new Resolver();
 const recorder = new WebMRecorder();
+const camera = new Camera();
 const particles = new ParticleLayer(ctx.gl);
 graph.overlay = (w, h, t) => particles.draw(w, h, t);
 const particleCfg: ParticleConfig = { shadow: 0, silhouette: 0, skitter: 0, smoke: 0, figure: 0 };
@@ -120,6 +122,14 @@ const panel = createPanel(document.getElementById('app')!, profiles, {
     loadImageURL(url, () => URL.revokeObjectURL(url));
     panel.setActiveSample(null);
   },
+  onWebcam() {
+    if (graph.isLive) stopWebcam();
+    else startWebcam();
+  },
+  onMirror(on) {
+    mirrorPref = on;
+    if (graph.isLive) graph.mirror = on;
+  },
   onPause(p) {
     state.paused = p;
   },
@@ -137,7 +147,59 @@ const panel = createPanel(document.getElementById('app')!, profiles, {
 });
 createCompare(canvas, () => state.split, (v) => (state.split = v));
 
+// live-source (webcam) preferences + throttle clocks
+let mirrorPref = true;
+let liveEdgeAcc = 0; // P1 (edge/lum) re-analysis timer
+let liveStatsAcc = 0; // CPU dominant-colors/bright-point timer
+const LIVE_EDGE_HZ = 25; // P1 refresh rate on a live source
+const LIVE_STATS_HZ = 5; // CPU getImageData rate (stalls the pipeline — keep low)
+
+async function startWebcam(): Promise<void> {
+  panel.setWebcamError(null);
+  try {
+    await camera.start();
+  } catch (e) {
+    panel.setWebcamError(e instanceof CameraError ? e.message : 'Could not start the camera.');
+    return;
+  }
+  graph.setLiveSource(camera.video);
+  graph.mirror = mirrorPref;
+  state.image = null; // a live feed isn't a permalinkable image
+  panel.setActiveSample(null);
+  panel.setWebcam(true);
+  liveEdgeAcc = liveStatsAcc = 999; // analyze the first live frame immediately
+  syncHash();
+}
+
+function stopWebcam(): void {
+  camera.stop();
+  graph.clearLiveSource();
+  graph.mirror = false;
+  panel.setWebcam(false);
+}
+
+// robust black/white points for the conditioner's contrast stretch: the 4th
+// and 96th luminance percentiles of the 24×24 grid (ignores stray pixels).
+function levelsFromGrid(grid: Float32Array): [number, number] {
+  const a = Array.from(grid).sort((x, y) => x - y);
+  const black = a[Math.floor(a.length * 0.04)];
+  const white = a[Math.floor(a.length * 0.96)];
+  return [black, Math.max(white, black + 0.1)];
+}
+
+// lift chroma of the seed palette in place (webcam colors are white-balanced flat)
+function saturateColors(cols: Float32Array, s: number): void {
+  for (let i = 0; i < cols.length; i += 4) {
+    const r = cols[i], g = cols[i + 1], b = cols[i + 2];
+    const l = r * 0.2126 + g * 0.7152 + b * 0.0722;
+    cols[i] = Math.min(1, Math.max(0, l + (r - l) * s));
+    cols[i + 1] = Math.min(1, Math.max(0, l + (g - l) * s));
+    cols[i + 2] = Math.min(1, Math.max(0, l + (b - l) * s));
+  }
+}
+
 function loadImageURL(url: string, done?: () => void): void {
+  if (graph.isLive) stopWebcam(); // a still image replaces the live feed
   const img = new Image();
   img.onload = () => {
     graph.setImage(img, img.naturalWidth, img.naturalHeight);
@@ -171,6 +233,8 @@ addEventListener('pointermove', (e) => {
   state.mouse[0] = e.clientX / innerWidth;
   state.mouse[1] = 1 - e.clientY / innerHeight;
 });
+// never leave the camera running after the page goes away
+addEventListener('pagehide', () => camera.stop());
 
 // initial state, overridable via URL hash
 // (#s=lsd&i=0.5&img=02-brick-wall&o=breathing:1.5,tracers:0)
@@ -248,6 +312,30 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
   if (!state.paused) state.time += dt;
+
+  // live source: refresh the analysis on two independent, throttled clocks so
+  // a 60 fps feed doesn't pay for P1 + a getImageData stall every frame.
+  // (texture upload itself happens every frame inside graph.render.)
+  if (graph.isLive && camera.ready && !state.paused) {
+    liveEdgeAcc += dt;
+    if (liveEdgeAcc >= 1 / LIVE_EDGE_HZ) {
+      graph.refreshAnalysis(); // recompute edge field + luminance pyramid (GPU)
+      liveEdgeAcc = 0;
+    }
+    liveStatsAcc += dt;
+    if (liveStatsAcc >= 1 / LIVE_STATS_HZ) {
+      const stats = analyzeImage(camera.video); // CPU getImageData — kept rare
+      // feed the GPU conditioner auto-levels + vivify the muted webcam palette
+      const [black, white] = levelsFromGrid(stats.lumGrid);
+      graph.setConditioning(black, white);
+      saturateColors(stats.colors, 1.3);
+      graph.seedColors.set(stats.colors);
+      if (graph.mirror) stats.bright[0] = 1 - stats.bright[0]; // match flipped view
+      graph.brightPos.set(stats.bright);
+      particles.setImageStats(stats);
+      liveStatsAcc = 0;
+    }
+  }
 
   // ease the kaleidoscope centre toward the cursor (slow ~2.2 s time constant)
   const mk = 1 - Math.exp(-dt / 2.2);

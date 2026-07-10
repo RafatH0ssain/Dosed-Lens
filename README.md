@@ -2,7 +2,7 @@
 
 **A client-side perception simulator.** Load a photo, pick one of twelve substances, set an intensity, and the canvas renders the image as if the *camera itself* were the altered observer — animated in real time, exportable as a PNG frame or a short WebM.
 
-It is a perception-simulation art/education tool. **All processing happens in your browser — images never leave your device.** Intensity is expressed in phenomenology-literature *tiers*, never doses. There is no consumption, sourcing, or dosing content anywhere in the project.
+It is a perception-simulation art/education tool. **All processing happens in your browser — images and webcam frames never leave your device.** Intensity is expressed in phenomenology-literature *tiers*, never doses. There is no consumption, sourcing, or dosing content anywhere in the project.
 
 ![DMT — Heavy](docs/screenshots/dmt-heavy.png)
 
@@ -69,6 +69,7 @@ npm run samples    # regenerate the procedural sample images
 | `Space` | Pause / resume |
 | `1`–`5` | Jump to a tier (Threshold → Heavy) |
 | Drag & drop | Load any image (or use the sample thumbnails / **load image**) |
+| **webcam** | Use your camera as a *live* source instead of a still image (with a selfie **mirror** toggle) |
 | **split** | Before/after divider — drag it across the canvas |
 | **png** / **rec** | Export the current frame, or record a WebM (auto-stops at 30 s) |
 | Search box | Filter the substance picker |
@@ -97,6 +98,8 @@ Profiles are declarative JSON (`src/profiles/*.json`): shared-param curves and c
 ### Performance
 
 Targets 60 fps at 1080p on integrated graphics. Levers: P1 is cached, the pattern/grain passes run at reduced resolution, the particle cap is 200, the history ring is quarter-res, and all uniforms are written in one block with no per-frame allocations in the loop.
+
+For the **live webcam source**, the frame is uploaded into the source texture every frame (a cheap `texSubImage2D` reusing the allocation), but the two expensive analyses run on their own throttled clocks: the P1 edge/luminance pass refreshes at ~25 Hz and the CPU dominant-color/bright-point pass (a `getImageData` read that would otherwise stall the pipeline) at ~5 Hz. Distortions stay anchored to the moving image without the feed paying full analysis cost every frame.
 
 ---
 

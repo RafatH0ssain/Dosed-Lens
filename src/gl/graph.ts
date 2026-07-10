@@ -74,6 +74,30 @@ void main(){
   fragColor = vec4(col, 1.0);
 }`;
 
+// Live-input conditioning: unsharp for local contrast (revives edges the
+// distortions ride on), auto-levels contrast stretch, then a saturation lift.
+// Applied to the raw webcam frame before P1 so the whole pipeline benefits.
+const CONDITION_FRAG = `
+uniform vec2 uCondLevels;  /* black, white luma points */
+uniform float uCondSat;
+uniform float uCondDetail;
+void main(){
+  vec3 c = texture(uScene, vUv).rgb;
+  vec2 px = 1.4 / uRes;
+  vec3 blur = (texture(uScene, vUv + vec2(px.x, px.y)).rgb
+             + texture(uScene, vUv + vec2(-px.x, px.y)).rgb
+             + texture(uScene, vUv + vec2(px.x, -px.y)).rgb
+             + texture(uScene, vUv + vec2(-px.x, -px.y)).rgb) * 0.25;
+  c += (c - blur) * uCondDetail;                 /* local contrast → edges */
+  float l = max(luma(c), 1e-4);
+  float ln = clamp((l - uCondLevels.x) / max(uCondLevels.y - uCondLevels.x, 0.05), 0.0, 1.0);
+  ln = ln * ln * (3.0 - 2.0 * ln);               /* gentle S-curve */
+  c *= ln / l;                                   /* rescale luminance, keep hue */
+  float l2 = luma(c);
+  c = mix(vec3(l2), c, uCondSat);                /* saturation lift */
+  fragColor = vec4(clamp(c, 0.0, 1.6), 1.0);
+}`;
+
 interface Pass {
   def: PassSource;
   bundle: ProgramBundle;
@@ -102,6 +126,22 @@ export class Graph {
   private imgH = 1;
   private analysisDirty = true;
   private fit = new Float32Array([1, 1, 0, 0]);
+  /** live webcam frame source; when set, render() re-uploads srcTex each frame */
+  private liveSource: HTMLVideoElement | null = null;
+  private liveW = 0;
+  private liveH = 0;
+  /** horizontal flip of the source (selfie-mirror for the webcam) */
+  mirror = false;
+
+  // input conditioning (live source only): normalises a soft/flat/muted
+  // webcam frame into the crisp, saturated structure the effects need to grab.
+  private condProg!: ProgramBundle;
+  private condTarget: Target | null = null;
+  private conditioned = false;
+  private condStale = false; // a new raw frame is waiting to be conditioned
+  private condLevels = new Float32Array([0.0, 1.0]); // black, white points (luma)
+  condSat = 1.35; // saturation lift
+  condDetail = 0.9; // local-contrast / unsharp amount
   seedColors = new Float32Array(16); // 4 × RGBA, set by setImage caller
   brightPos = new Float32Array([0.5, 0.5]); // set by setImage caller
 
@@ -136,6 +176,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     this.analysis = createProgram(gl, buildFragmentSource(analysisBody, { common }));
     this.present = createProgram(gl, buildFragmentSource(PRESENT_FRAG, { common }));
     this.flowProg = createProgram(gl, buildFragmentSource(flowBody, { common }));
+    this.condProg = createProgram(gl, buildFragmentSource(CONDITION_FRAG, { common }));
     this.histCopy = createProgram(
       gl,
       buildFragmentSource('void main(){ fragColor = vec4(scene(vUv), 1.0); }', { common }),
@@ -199,6 +240,90 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     return this.srcTex !== null;
   }
 
+  /** Switch to a live webcam source: render() re-uploads its frame each frame. */
+  setLiveSource(video: HTMLVideoElement): void {
+    this.liveSource = video;
+    this.liveW = 0; // force a fresh allocation on the next upload
+    this.liveH = 0;
+  }
+
+  clearLiveSource(): void {
+    this.liveSource = null;
+    this.conditioned = false; // still images are already well-conditioned
+  }
+
+  get isLive(): boolean {
+    return this.liveSource !== null;
+  }
+
+  /** The texture the pipeline processes: conditioned copy when live, else raw. */
+  private get source(): WebGLTexture | null {
+    return this.conditioned && this.condTarget ? this.condTarget.tex : this.srcTex;
+  }
+
+  /** Update the conditioning black/white luma points (CPU-derived, throttled). */
+  setConditioning(black: number, white: number): void {
+    this.condLevels[0] = black;
+    this.condLevels[1] = white;
+  }
+
+  /** Request a P1 re-analysis on the next frame (throttled by the caller). */
+  refreshAnalysis(): void {
+    this.analysisDirty = true;
+  }
+
+  /** Upload the current webcam frame into srcTex, reusing the allocation. */
+  private uploadLiveFrame(): void {
+    const gl = this.gl;
+    const v = this.liveSource!;
+    const w = v.videoWidth;
+    const h = v.videoHeight;
+    if (w === 0 || v.readyState < 2) return;
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    if (!this.srcTex || w !== this.liveW || h !== this.liveH) {
+      if (this.srcTex) gl.deleteTexture(this.srcTex);
+      this.srcTex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.srcTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, v);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.liveW = w;
+      this.liveH = h;
+      this.imgW = w;
+      this.imgH = h;
+      this.analysisDirty = true;
+      // conditioning target tracks the source dimensions
+      if (this.condTarget) destroyTarget(gl, this.condTarget);
+      this.condTarget = createTarget(gl, w, h);
+    } else {
+      gl.bindTexture(gl.TEXTURE_2D, this.srcTex);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, v);
+    }
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    this.conditioned = true;
+    this.condStale = true; // this fresh frame needs conditioning before use
+  }
+
+  /** Condition the raw webcam frame (srcTex) into condTarget before analysis. */
+  private runConditioning(): void {
+    const gl = this.gl;
+    const t = this.condTarget!;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, t.fb);
+    gl.viewport(0, 0, t.w, t.h);
+    gl.useProgram(this.condProg.prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.srcTex); // raw upload
+    gl.uniform1i(uni(gl, this.condProg, 'uScene'), 0);
+    gl.uniform2f(uni(gl, this.condProg, 'uRes'), t.w, t.h);
+    gl.uniform2f(uni(gl, this.condProg, 'uCondLevels'), this.condLevels[0], this.condLevels[1]);
+    gl.uniform1f(uni(gl, this.condProg, 'uCondSat'), this.condSat);
+    gl.uniform1f(uni(gl, this.condProg, 'uCondDetail'), this.condDetail);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.condStale = false;
+  }
+
   private computeFit(): void {
     const { width: rw, height: rh } = this.ctx;
     const s = Math.max(rw / this.imgW, rh / this.imgH);
@@ -208,15 +333,20 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     this.fit[1] = sy;
     this.fit[2] = 0.5 * (1 - sx);
     this.fit[3] = 0.5 * (1 - sy);
+    if (this.mirror) {
+      // reflect the source horizontally: srcU → 1 - srcU
+      this.fit[0] = -sx;
+      this.fit[2] = 0.5 * (1 + sx);
+    }
   }
 
-  private bindCommon(b: ProgramBundle, f: FrameState, sceneTex: WebGLTexture): void {
+  private bindCommon(b: ProgramBundle, f: FrameState, sceneTex: WebGLTexture | null): void {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sceneTex);
     gl.uniform1i(uni(gl, b, 'uScene'), 0);
     gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, this.srcTex);
+    gl.bindTexture(gl.TEXTURE_2D, this.source);
     gl.uniform1i(uni(gl, b, 'uSrc'), 1);
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, this.edgesT.tex);
@@ -279,7 +409,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.edgesT.fb);
     gl.viewport(0, 0, this.edgesT.w, this.edgesT.h);
     gl.useProgram(this.analysis.prog);
-    this.bindCommon(this.analysis, f, this.srcTex!);
+    this.bindCommon(this.analysis, f, this.source!);
     gl.uniform1i(uni(gl, this.analysis, 'uMode'), 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     // mode 1: luminance → mip pyramid
@@ -301,10 +431,14 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
   }
 
   render(f: FrameState): void {
+    // advance the live frame unless paused (dt 0); always do the first upload
+    if (this.liveSource && (f.dt > 0 || this.liveW === 0)) this.uploadLiveFrame();
     if (!this.srcTex) return;
     const gl = this.gl;
     gl.bindVertexArray(this.quad);
     this.computeFit();
+    // condition the fresh webcam frame before anything reads the source
+    if (this.conditioned && this.condTarget && this.condStale) this.runConditioning();
     if (this.analysisDirty) this.runAnalysis(f);
 
     // melt accumulator step (reads flowPing.read via uFlow, writes .write)
@@ -313,7 +447,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
       gl.bindFramebuffer(gl.FRAMEBUFFER, ft.fb);
       gl.viewport(0, 0, ft.w, ft.h);
       gl.useProgram(this.flowProg.prog);
-      this.bindCommon(this.flowProg, f, this.srcTex);
+      this.bindCommon(this.flowProg, f, this.source!);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       this.flowPing.swap();
     }
@@ -321,7 +455,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     const active = this.activeScratch;
     active.length = 0;
     for (const p of this.passes) if (!this.skip(p.def, f)) active.push(p);
-    let cur = this.srcTex;
+    let cur = this.source;
     let curTarget: Target | null = null;
     for (let i = 0; i < active.length; i++) {
       const p = active[i];

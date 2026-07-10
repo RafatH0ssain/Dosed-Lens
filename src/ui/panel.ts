@@ -23,6 +23,10 @@ export interface PanelCallbacks extends ToggleActions, OverrideCallbacks {
   onIntensity(v: number): void;
   onSample(url: string): void;
   onUpload(file: File): void;
+  /** toggle the webcam as the live source; returns nothing — panel reflects
+      the result via setWebcam / setWebcamError */
+  onWebcam(): void;
+  onMirror(on: boolean): void;
 }
 
 export interface Panel {
@@ -30,6 +34,10 @@ export interface Panel {
   setIntensity(v: number): void;
   setPaused(p: boolean): void;
   setActiveSample(name: string | null): void;
+  /** Reflect webcam on/off state (button highlight + mirror row visibility). */
+  setWebcam(on: boolean): void;
+  /** Show a camera error message, or clear it with null. */
+  setWebcamError(msg: string | null): void;
   /** Select a substance through the same gate flow as clicking the picker. */
   pick(id: string): void;
 }
@@ -52,7 +60,10 @@ export function createPanel(
       <div class="samples" id="samples"></div>
       <div class="row">
         <label class="btn">load image<input type="file" accept="image/*" id="file"></label>
+        <button class="btn" id="webcam">webcam</button>
       </div>
+      <label class="mirror-row" id="mirror-row"><input type="checkbox" id="mirror" checked> mirror (selfie view)</label>
+      <div class="note" id="cam-err"></div>
       <div id="actions"></div>
       <div id="overrides" class="overrides"></div>
       <div class="hint"><kbd>H</kbd> panel · <kbd>space</kbd> pause · <kbd>1–5</kbd> tiers · drop an image anywhere</div>
@@ -124,6 +135,14 @@ export function createPanel(
     const f = (e.target as HTMLInputElement).files?.[0];
     if (f) cb.onUpload(f);
   });
+
+  // webcam controls
+  const webcamBtn = root.querySelector<HTMLButtonElement>('#webcam')!;
+  const mirrorRow = root.querySelector<HTMLElement>('#mirror-row')!;
+  const mirrorBox = root.querySelector<HTMLInputElement>('#mirror')!;
+  const camErr = root.querySelector<HTMLElement>('#cam-err')!;
+  webcamBtn.addEventListener('click', () => cb.onWebcam());
+  mirrorBox.addEventListener('change', () => cb.onMirror(mirrorBox.checked));
   // drag & drop anywhere
   addEventListener('dragover', (e) => e.preventDefault());
   addEventListener('drop', (e) => {
@@ -160,6 +179,16 @@ export function createPanel(
     setPaused: (p) => toggles.setPaused(p),
     setActiveSample(name) {
       for (const [n, img] of sampleImgs) img.classList.toggle('on', n === name);
+    },
+    setWebcam(on) {
+      webcamBtn.classList.toggle('on', on);
+      webcamBtn.textContent = on ? 'stop webcam' : 'webcam';
+      mirrorRow.classList.toggle('show', on);
+      if (on) camErr.classList.remove('show');
+    },
+    setWebcamError(msg) {
+      camErr.textContent = msg ? '⚠ ' + msg : '';
+      camErr.classList.toggle('show', !!msg);
     },
     pick,
   };
