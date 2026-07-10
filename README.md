@@ -4,6 +4,8 @@
 
 It is a perception-simulation art/education tool. **All processing happens in your browser — images and webcam frames never leave your device.** Intensity is expressed in phenomenology-literature *tiers*, never doses. There is no consumption, sourcing, or dosing content anywhere in the project.
 
+Live Link: https://dosed-lens.rafat-click-hossain.workers.dev/#s=lsd&i=0.50&img=01-room-lamp
+
 ![DMT — Heavy](docs/screenshots/dmt-heavy.png)
 
 ---
