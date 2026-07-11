@@ -519,3 +519,10 @@ function adaptQuality(fps: number): void {
 
 forceResize(ctx);
 requestAnimationFrame(frame);
+
+// PWA: register the offline service worker (installable + works offline)
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
