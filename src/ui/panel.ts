@@ -69,19 +69,19 @@ export function createPanel(
       <div class="sheet-grip" id="grip"><span></span></div>
       <div class="hd"><h1>Dosed<br>Lens</h1><div class="lv" id="lv"></div></div>
       <div class="sub">${ABOUT}</div>
+      <button class="btn wide cam-cta" id="webcam"><span class="dot"></span>use live camera</button>
+      <div class="note" id="cam-err"></div>
       <div class="sec">substance</div>
       <div id="picker"></div>
       <div class="sec">intensity</div>
       <div id="slider"></div>
       <div class="note" id="note"></div>
-      <div class="sec">source</div>
+      <div class="sec">photo</div>
       <label class="drop-tile" id="drop">
         <span class="drop-ic">${ICON.upload}</span>
         <span class="drop-txt"><b>Upload a photo</b><i>drop anywhere · or tap to browse</i></span>
         <input type="file" accept="image/*" id="file">
       </label>
-      <button class="btn wide cam-cta" id="webcam"><span class="dot"></span>use live camera</button>
-      <div class="note" id="cam-err"></div>
       <div class="sec">samples</div>
       <div class="samples" id="samples"></div>
       <div id="actions"></div>
@@ -217,6 +217,14 @@ export function createPanel(
     reelChips.set(id, b);
     camReel.appendChild(b);
   }
+  // desktop: vertical mouse wheel scrolls the reel horizontally (touch already
+  // swipes natively); leave real horizontal-trackpad deltas to native scroll
+  camReel.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      camReel.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
   function reelActive(id: string, scroll: boolean): void {
     for (const [k, b] of reelChips) {
       const on = k === id;
