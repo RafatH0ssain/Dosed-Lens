@@ -54,6 +54,7 @@ export function createPanel(
 ): Panel {
   root.innerHTML = `
     <div id="panel">
+      <div class="sheet-grip" id="grip"><span></span></div>
       <div class="hd"><h1>Dosed Lens</h1><div class="lv" id="lv"></div></div>
       <div class="sub">${ABOUT}</div>
       <div class="sec">substance</div>
@@ -160,14 +161,44 @@ export function createPanel(
     if (f && f.type.startsWith('image/')) cb.onUpload(f);
   });
 
-  // panel visibility — H key (desktop) or the ◧ button (always, incl. touch)
+  // panel visibility — H key (desktop) or the ◧ button (always, incl. touch).
+  // On phones the panel is a bottom sheet with three snap states dragged from
+  // the grip; on desktop it's the classic slide-in/out toggle.
   const tap = root.querySelector<HTMLElement>('#tap')!;
   const menuBtn = root.querySelector<HTMLButtonElement>('#menu')!;
-  function togglePanel(): void {
-    const hidden = panel.classList.toggle('hidden');
-    tap.classList.toggle('show', hidden);
-    menuBtn.classList.toggle('on', !hidden);
+  const grip = root.querySelector<HTMLElement>('#grip')!;
+
+  type Sheet = 'full' | 'half' | 'closed';
+  let sheet: Sheet = 'full';
+  const isMobile = () => matchMedia('(max-width:640px)').matches;
+  // fraction the sheet is translated down in each state (of its own height)
+  const OFFSET: Record<Sheet, number> = { full: 0, half: 0.46, closed: 1 };
+
+  function applyPanel(): void {
+    if (isMobile()) {
+      panel.classList.remove('hidden');
+      panel.classList.toggle('sheet-half', sheet === 'half');
+      panel.classList.toggle('sheet-closed', sheet === 'closed');
+      panel.style.transform = ''; // let the classes drive it
+      menuBtn.classList.toggle('on', sheet !== 'closed');
+    } else {
+      panel.classList.remove('sheet-half', 'sheet-closed');
+      panel.style.transform = '';
+      menuBtn.classList.toggle('on', !panel.classList.contains('hidden'));
+    }
   }
+
+  function togglePanel(): void {
+    if (isMobile()) {
+      sheet = sheet === 'closed' ? 'full' : 'closed';
+      applyPanel();
+    } else {
+      const hidden = panel.classList.toggle('hidden');
+      tap.classList.toggle('show', hidden);
+      menuBtn.classList.toggle('on', !hidden);
+    }
+  }
+
   menuBtn.classList.add('on'); // panel starts open
   menuBtn.addEventListener('click', togglePanel);
   addEventListener('keydown', (e) => {
@@ -175,6 +206,65 @@ export function createPanel(
       togglePanel();
     }
   });
+  addEventListener('resize', applyPanel);
+  applyPanel();
+
+  // ---- drag the grip to move/snap the sheet (mobile only) ----
+  let dragging = false;
+  let startY = 0;
+  let panelH = 1;
+  let lastY = 0;
+  let lastT = 0;
+  let vel = 0; // px/ms, +down
+
+  grip.addEventListener('pointerdown', (e) => {
+    if (!isMobile()) return;
+    dragging = true;
+    startY = e.clientY;
+    panelH = panel.getBoundingClientRect().height;
+    lastY = e.clientY;
+    lastT = performance.now();
+    vel = 0;
+    panel.classList.add('dragging'); // suspend the snap transition while dragging
+    try { grip.setPointerCapture(e.pointerId); } catch {}
+    e.preventDefault();
+  });
+  grip.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const base = OFFSET[sheet] * panelH;
+    const offset = Math.min(panelH, Math.max(0, base + (e.clientY - startY)));
+    panel.style.transform = `translateY(${offset}px)`;
+    const now = performance.now();
+    if (now > lastT) vel = (e.clientY - lastY) / (now - lastT);
+    lastY = e.clientY;
+    lastT = now;
+  });
+  function endDrag(e: PointerEvent): void {
+    if (!dragging) return;
+    dragging = false;
+    panel.classList.remove('dragging');
+    const base = OFFSET[sheet] * panelH;
+    const offset = Math.min(panelH, Math.max(0, base + (e.clientY - startY)));
+    sheet = snapSheet(offset / panelH, vel);
+    applyPanel();
+  }
+  grip.addEventListener('pointerup', endDrag);
+  grip.addEventListener('pointercancel', endDrag);
+
+  // nearest snap point to the released position, nudged one step if flicked hard
+  function snapSheet(frac: number, v: number): Sheet {
+    const order: Sheet[] = ['full', 'half', 'closed'];
+    const offs = [OFFSET.full, OFFSET.half, OFFSET.closed];
+    let idx = 0;
+    let bd = Infinity;
+    offs.forEach((o, i) => {
+      const d = Math.abs(o - frac);
+      if (d < bd) { bd = d; idx = i; }
+    });
+    if (v > 1.2 && idx < 2) idx++; // hard flick down → one step toward closed
+    else if (v < -1.2 && idx > 0) idx--; // hard flick up → one step toward full
+    return order[idx];
+  }
 
   return {
     setSubstance(p, initialOverrides) {
