@@ -1,3 +1,7 @@
 node_modules/
 dist/
 *.local
+# not committed: a Windows-generated lock omits Linux-only optional native
+# deps (rollup/@emnapi), which breaks `npm ci` on Cloudflare's Linux builder.
+# No lockfile → Cloudflare uses `npm install`, resolving deps per-platform.
+package-lock.json
