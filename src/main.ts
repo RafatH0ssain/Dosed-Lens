@@ -20,7 +20,7 @@ import { Resolver, loadProfiles } from './engine/resolver';
 import { TIER_STOPS } from './engine/curves';
 import { analyzeImage } from './engine/domcolors';
 import { ParticleLayer, ParticleConfig } from './engine/particles';
-import { WebMRecorder, savePNG } from './engine/recorder';
+import { WebMRecorder } from './engine/recorder';
 import { Camera, CameraError } from './engine/camera';
 import { createPanel, setFPS } from './ui/panel';
 import { createCompare } from './ui/compare';
@@ -140,7 +140,9 @@ const panel = createPanel(document.getElementById('app')!, profiles, {
     state.split = on ? 0.5 : 0;
   },
   onPNG() {
-    pngRequested = true;
+    // must run synchronously in the click gesture so navigator.share() keeps
+    // its user activation (iOS is strict) — capture the frame right here
+    captureShare();
   },
   onWebM() {
     if (recorder.recording) recorder.stop();
@@ -332,7 +334,49 @@ if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
   panel.setPaused(true);
 }
 
-let pngRequested = false;
+// Capture the current frame and hand it to the native share sheet (mobile) or
+// download it (desktop). Called synchronously from the shutter/PNG click so the
+// share() call still has transient user activation. preserveDrawingBuffer is
+// off, so we re-render once here to guarantee a valid buffer before reading it.
+async function captureShare(): Promise<void> {
+  graph.render(frameState);
+  const name = `dosed-lens-${state.substance}-${state.intensity.toFixed(2)}.png`;
+  const blob = dataURLtoBlob(canvas.toDataURL('image/png'));
+  const file = new File([blob], name, { type: 'image/png' });
+  const nav = navigator as Navigator & {
+    canShare?: (d?: ShareData) => boolean;
+    share?: (d: ShareData) => Promise<void>;
+  };
+  // native share sheet on touch devices; download on desktop
+  if (matchMedia('(pointer: coarse)').matches && nav.canShare?.({ files: [file] }) && nav.share) {
+    try {
+      await nav.share({ files: [file], title: 'Dosed Lens', text: 'Made with Dosed Lens' });
+      return;
+    } catch (err) {
+      if ((err as DOMException).name === 'AbortError') return; // user dismissed
+      // any other failure → fall through to a download
+    }
+  }
+  saveBlob(blob, name);
+}
+
+function dataURLtoBlob(url: string): Blob {
+  const [head, b64] = url.split(',');
+  const mime = /:(.*?);/.exec(head)?.[1] ?? 'image/png';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+function saveBlob(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
 let last = performance.now();
 let fpsFrames = 0;
 let fpsLast = performance.now();
@@ -442,11 +486,6 @@ function frame(now: number): void {
   if (!state.paused) particles.update(dt, inten, state.mouse, particleCfg);
 
   graph.render(frameState);
-
-  if (pngRequested) {
-    pngRequested = false;
-    savePNG(canvas, `dosed-lens-${state.substance}-${state.intensity.toFixed(2)}`);
-  }
 
   fpsFrames++;
   if (now - fpsLast > 500) {

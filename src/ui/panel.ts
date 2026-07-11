@@ -255,7 +255,7 @@ export function createPanel(
       flash.classList.remove('go');
       void flash.offsetWidth; // restart the animation
       flash.classList.add('go');
-      toast('saved photo');
+      toast('captured');
     } else {
       recording = cb.onWebM();
       camShutter.classList.toggle('recording', recording);
