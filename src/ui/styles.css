@@ -258,6 +258,19 @@ kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font-size:8.5px
 .reel-chip.on{background:var(--accent);border-color:var(--accent);color:#0b0b0d;font-weight:700;opacity:1}
 .reel-chip.warn.on{background:var(--warn);border-color:var(--warn)}
 
+/* per-effect overrides inside the camera chrome (shares .overrides styling) */
+.cam-ov{margin-top:0;background:rgba(10,9,12,.42);backdrop-filter:blur(8px)}
+
+/* clean mode: hide every control but the shutter (H on desktop, tap on mobile) */
+#app.mode-camera.cam-clean .cam-top,
+#app.mode-camera.cam-clean .cam-int,
+#app.mode-camera.cam-clean .cam-reel,
+#app.mode-camera.cam-clean .cam-ov,
+#app.mode-camera.cam-clean #cam-upload,
+#app.mode-camera.cam-clean #cam-video{display:none}
+#app.mode-camera.cam-clean .cam-bottom{background:none;gap:0;border-color:transparent}
+#app.mode-camera.cam-clean .cam-shutter-row{justify-content:center}
+
 .cam-shutter-row{display:flex;align-items:center;justify-content:space-between;padding:2px 8px}
 .cam-shutter{
   width:74px;height:74px;border-radius:50%;border:none;background:transparent;

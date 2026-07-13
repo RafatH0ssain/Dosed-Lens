@@ -15,6 +15,8 @@ export interface OverrideCallbacks {
 export interface OverrideDrawer {
   /** Rebuild rows for a profile; `initial` seeds non-default multipliers. */
   rebuild(p: Profile, initial?: Record<string, number>): void;
+  /** Reflect a value set elsewhere (e.g. the twin drawer) without firing back. */
+  setValue(name: string, mult: number): void;
 }
 
 export function createOverrides(
@@ -91,9 +93,17 @@ export function createOverrides(
     }
   });
 
+  // reflect an external change (the twin drawer) without echoing the callback
+  function setValue(name: string, mult: number): void {
+    const row = inputs.find((r) => r.name === name);
+    if (!row) return;
+    row.input.value = String(mult);
+    row.out.textContent = fmt(mult);
+  }
+
   // keep collapsed by default (advanced feature)
   setOpen(false);
   void body; // referenced via CSS .open
 
-  return { rebuild };
+  return { rebuild, setValue };
 }

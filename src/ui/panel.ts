@@ -86,7 +86,7 @@ export function createPanel(
       <div class="samples" id="samples"></div>
       <div id="actions"></div>
       <div id="overrides" class="overrides"></div>
-      <div class="hint"><kbd>H</kbd> panel · <kbd>space</kbd> pause · <kbd>1–5</kbd> tiers · drop an image anywhere</div>
+      <div class="hint"><kbd>H</kbd> panel · <kbd>space</kbd> pause · <kbd>1–5</kbd> tiers · drop an image anywhere · in camera, <kbd>H</kbd> or tap hides the chrome</div>
     </div>
 
     <div id="camera">
@@ -103,6 +103,7 @@ export function createPanel(
           <input type="range" min="0" max="1" step="0.005" id="cam-int" aria-label="intensity">
           <span class="cam-tier" id="cam-tier">Common</span>
         </div>
+        <div id="cam-overrides" class="overrides cam-ov"></div>
         <div class="cam-reel" id="cam-reel"></div>
         <div class="cam-shutter-row">
           <button class="cam-icon lg" id="cam-upload" aria-label="load a photo instead">${ICON.upload}</button>
@@ -161,7 +162,14 @@ export function createPanel(
 
   const slider = createTierSlider(root.querySelector('#slider')!, cb.onIntensity);
   const toggles = createToggles(root.querySelector('#actions')!, cb);
-  const overrides = createOverrides(root.querySelector('#overrides')!, cb);
+  // two override drawers — one in the browse panel, one in the camera chrome —
+  // kept in lockstep: moving a slider in one reflects into the other's readout.
+  const overrides = createOverrides(root.querySelector('#overrides')!, {
+    onOverride(name, mult) { camOverrides.setValue(name, mult); cb.onOverride(name, mult); },
+  });
+  const camOverrides = createOverrides(root.querySelector('#cam-overrides')!, {
+    onOverride(name, mult) { overrides.setValue(name, mult); cb.onOverride(name, mult); },
+  });
 
   // ---- samples ----
   const samplesEl = root.querySelector<HTMLElement>('#samples')!;
@@ -324,13 +332,43 @@ export function createPanel(
     }
   }
 
+  // camera-mode chrome hide: leaves only the shutter. Toggled with H on desktop
+  // or a tap on the preview (mobile has no keyboard). `.cam-clean` on the root
+  // drives the CSS; reset whenever we leave/enter the camera.
+  let camClean = false;
+  function setCamChrome(hidden: boolean): void {
+    camClean = hidden;
+    root.classList.toggle('cam-clean', camClean);
+  }
+  function toggleCamChrome(): void {
+    setCamChrome(!camClean);
+    if (camClean) toast('tap the preview for controls');
+  }
+
   menuBtn.classList.add('on');
   menuBtn.addEventListener('click', togglePanel);
   addEventListener('keydown', (e) => {
     if ((e.key === 'h' || e.key === 'H') && !(e.target instanceof HTMLInputElement)) {
-      togglePanel();
+      if (root.classList.contains('mode-camera')) toggleCamChrome();
+      else togglePanel();
     }
   });
+
+  // tap the live preview to show/hide the camera chrome (a real tap, not a drag
+  // that's steering the effect focus). Only meaningful in camera mode.
+  const previewCanvas = document.querySelector<HTMLCanvasElement>('canvas#c');
+  if (previewCanvas) {
+    let downT = 0, downX = 0, downY = 0;
+    previewCanvas.addEventListener('pointerdown', (e) => {
+      downT = performance.now(); downX = e.clientX; downY = e.clientY;
+    });
+    previewCanvas.addEventListener('pointerup', (e) => {
+      if (!root.classList.contains('mode-camera')) return;
+      const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
+      if (performance.now() - downT < 300 && moved < 12) toggleCamChrome();
+    });
+  }
+
   addEventListener('resize', applyPanel);
   applyPanel();
 
@@ -395,6 +433,7 @@ export function createPanel(
       lastId = p.id;
       picker.setActive(p.id);
       overrides.rebuild(p, initialOverrides);
+      camOverrides.rebuild(p, initialOverrides);
       lv.textContent = p.name.toUpperCase();
       camName.textContent = p.name.toUpperCase();
       reelActive(p.id, root.classList.contains('mode-camera'));
@@ -421,6 +460,7 @@ export function createPanel(
     setWebcam(on) {
       root.classList.toggle('mode-camera', on);
       webcamBtn.classList.toggle('on', on);
+      setCamChrome(false); // always start a session with the chrome shown
       if (on) {
         camInt.value = String(curIntensity);
         setTierLabel(curIntensity);
