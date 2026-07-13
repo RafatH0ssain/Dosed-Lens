@@ -24,6 +24,7 @@ import { WebMRecorder } from './engine/recorder';
 import { Camera, CameraError } from './engine/camera';
 import { createPanel, setFPS } from './ui/panel';
 import { createCompare } from './ui/compare';
+import { createDebugHUD, debugEnabled, DebugHUD } from './ui/debug';
 
 import common from './passes/common.glsl?raw';
 import analysisFrag from './passes/analysis.frag?raw';
@@ -79,11 +80,16 @@ const state = {
   overrides: {} as Record<string, number>, // non-default per-effect multipliers
 };
 
+// #debug=1 turns on the diagnostic HUD; latched at boot, kept across hash syncs
+const DEBUG = debugEnabled();
+let hud: DebugHUD | null = null;
+
 function syncHash(): void {
   const parts = [`s=${state.substance}`, `i=${state.intensity.toFixed(2)}`];
   if (state.image) parts.push(`img=${state.image}`);
   const ov = Object.entries(state.overrides).filter(([, m]) => m !== 1);
   if (ov.length) parts.push(`o=${ov.map(([n, m]) => `${n}:${m}`).join(',')}`);
+  if (DEBUG) parts.push('debug=1');
   history.replaceState(null, '', `#${parts.join('&')}`);
 }
 
@@ -408,6 +414,7 @@ const frameState = {
 
 function frame(now: number): void {
   requestAnimationFrame(frame);
+  hud?.tick(now);
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
   if (!state.paused) state.time += dt;
@@ -518,6 +525,7 @@ function adaptQuality(fps: number): void {
 }
 
 forceResize(ctx);
+if (DEBUG) hud = createDebugHUD(ctx, graph, camera);
 requestAnimationFrame(frame);
 
 // PWA: register the offline service worker (installable + works offline)

@@ -42,6 +42,12 @@ export class Camera {
     return this.active && this.video.readyState >= 2 && this.video.videoWidth > 0;
   }
 
+  /** What the camera actually delivered (may differ from the constraints). */
+  get settings(): MediaTrackSettings | null {
+    const t = this.stream?.getVideoTracks()[0];
+    return t ? t.getSettings() : null;
+  }
+
   get width(): number {
     return this.video.videoWidth;
   }

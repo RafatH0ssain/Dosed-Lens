@@ -148,6 +148,9 @@ export class Graph {
   /** drawn into the current target just before the post pass (particles) */
   overlay: ((w: number, h: number, time: number) => void) | null = null;
 
+  /** total P1 runs — read by the debug HUD to report the achieved refresh rate */
+  analysisRuns = 0;
+
   // null module so passes compile before the first setSignature call
   private signatureSrc = `
 vec2 sigWarp(vec2 uv){ return uv; }
@@ -420,6 +423,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     gl.bindTexture(gl.TEXTURE_2D, this.lumT.tex);
     gl.generateMipmap(gl.TEXTURE_2D);
     this.analysisDirty = false;
+    this.analysisRuns++;
   }
 
   private skip(def: PassSource, f: FrameState): boolean {
