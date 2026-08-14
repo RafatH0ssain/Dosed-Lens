@@ -153,6 +153,11 @@ export class Graph {
   /** total P1 runs — read by the debug HUD to report the achieved refresh rate */
   analysisRuns = 0;
 
+  /** Frames for which prevPing holds no usable history (set on realloc).
+      temporal.frag can replace the frame outright with uPrev, so presenting a
+      freshly-allocated (empty) feedback texture shows as a full black frame. */
+  private feedbackCold = 0;
+
   // null module so passes compile before the first setSignature call
   private signatureSrc = `
 vec2 sigWarp(vec2 uv){ return uv; }
@@ -198,6 +203,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
       this.lumT = createTarget(gl, w, h, { mipmaps: true });
       this.histT = createTarget(gl, w, h);
       this.analysisDirty = true;
+      this.feedbackCold = 1; // prevPing was just reallocated — it holds nothing
     });
   }
 
@@ -368,7 +374,10 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     gl.bindTexture(gl.TEXTURE_2D, this.lumT.tex);
     gl.uniform1i(uni(gl, b, 'uLum'), 3);
     gl.activeTexture(gl.TEXTURE4);
-    gl.bindTexture(gl.TEXTURE_2D, this.prevPing.read.tex);
+    // While the feedback is cold, seed it from the frame in flight instead of
+    // the empty buffer: passes that mix or replace with uPrev then see current
+    // content, costing one frame of trails rather than one black frame.
+    gl.bindTexture(gl.TEXTURE_2D, this.feedbackCold > 0 ? sceneTex : this.prevPing.read.tex);
     gl.uniform1i(uni(gl, b, 'uPrev'), 4);
     gl.activeTexture(gl.TEXTURE5);
     gl.bindTexture(gl.TEXTURE_2D, this.flowPing.read.tex);
@@ -519,6 +528,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
 
     // the frame just written becomes uPrev for the next one
     this.prevPing.swap();
+    if (this.feedbackCold > 0) this.feedbackCold--; // history is real again
     gl.bindVertexArray(null);
   }
 }
