@@ -20,6 +20,14 @@ const MESSAGES: Record<CameraErrorKind, string> = {
 
 export type Facing = 'user' | 'environment';
 
+/** Capture ceiling. The pipeline resamples to the canvas anyway, so pixels
+    above this buy nothing visible and cost CPU on every live frame. 30 fps is
+    the source refresh only — rendering stays at the display's rAF rate, and
+    the effects are time-driven in the shader, so motion stays smooth. */
+const CAPTURE_W = 1280;
+const CAPTURE_H = 720;
+const CAPTURE_FPS = 30;
+
 export class Camera {
   private stream: MediaStream | null = null;
   facing: Facing = 'user';
@@ -60,11 +68,21 @@ export class Camera {
       throw new CameraError('insecure', MESSAGES.insecure);
     }
     this.stop();
-    // `ideal` (not `exact`) so a device without a back camera still resolves
-    const video: MediaTrackConstraints = {
+    // `ideal` (not `exact`) on facingMode so a device without a back camera
+    // still resolves. width/height/frameRate carry a hard `max` as well: with
+    // `ideal` alone a capable camera (any modern Mac) hands back 1080p or
+    // more, and every CPU-touching stage downstream — the per-frame texture
+    // upload, the conditioning pass, the analyzeImage readback — is sized by
+    // those pixels. `crop-and-scale` lets the browser downscale a sensor mode
+    // to meet the cap instead of overshooting it.
+    // resizeMode is Chrome-only and absent from lib.dom's MediaTrackConstraints;
+    // unknown constraint names are ignored, so it is safe to pass everywhere.
+    const video: MediaTrackConstraints & { resizeMode?: string } = {
       facingMode: { ideal: facing },
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
+      width: { ideal: CAPTURE_W, max: CAPTURE_W },
+      height: { ideal: CAPTURE_H, max: CAPTURE_H },
+      frameRate: { ideal: CAPTURE_FPS, max: CAPTURE_FPS },
+      resizeMode: 'crop-and-scale',
     };
     let stream: MediaStream;
     try {

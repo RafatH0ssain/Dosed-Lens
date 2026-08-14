@@ -130,6 +130,8 @@ export class Graph {
   private liveSource: HTMLVideoElement | null = null;
   private liveW = 0;
   private liveH = 0;
+  /** currentTime of the last frame uploaded — skips duplicate uploads */
+  private liveTime = -1;
   /** horizontal flip of the source (selfie-mirror for the webcam) */
   mirror = false;
 
@@ -248,6 +250,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     this.liveSource = video;
     this.liveW = 0; // force a fresh allocation on the next upload
     this.liveH = 0;
+    this.liveTime = -1;
   }
 
   clearLiveSource(): void {
@@ -282,6 +285,11 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     const w = v.videoWidth;
     const h = v.videoHeight;
     if (w === 0 || v.readyState < 2) return;
+    // The camera runs at 30 fps but render() ticks at the display rate, so
+    // roughly every other call would re-upload a frame already in srcTex.
+    // Skipping those also skips the conditioning pass (condStale stays false).
+    if (v.currentTime === this.liveTime && this.liveW !== 0) return;
+    this.liveTime = v.currentTime;
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     if (!this.srcTex || w !== this.liveW || h !== this.liveH) {
       if (this.srcTex) gl.deleteTexture(this.srcTex);
