@@ -229,9 +229,8 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     if (this.srcTex) gl.deleteTexture(this.srcTex);
     this.srcTex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, this.srcTex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    // stored top-down as delivered; computeFit() flips V on the way out
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, source);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -290,7 +289,6 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     // Skipping those also skips the conditioning pass (condStale stays false).
     if (v.currentTime === this.liveTime && this.liveW !== 0) return;
     this.liveTime = v.currentTime;
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     if (!this.srcTex || w !== this.liveW || h !== this.liveH) {
       if (this.srcTex) gl.deleteTexture(this.srcTex);
       this.srcTex = gl.createTexture()!;
@@ -312,7 +310,6 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
       gl.bindTexture(gl.TEXTURE_2D, this.srcTex);
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, v);
     }
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     this.conditioned = true;
     this.condStale = true; // this fresh frame needs conditioning before use
   }
@@ -341,9 +338,14 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     const sx = rw / (this.imgW * s);
     const sy = rh / (this.imgH * s);
     this.fit[0] = sx;
-    this.fit[1] = sy;
     this.fit[2] = 0.5 * (1 - sx);
-    this.fit[3] = 0.5 * (1 - sy);
+    // Textures are uploaded top-down (no UNPACK_FLIP_Y_WEBGL) because setting
+    // that flag on a per-frame video upload can drop the browser off its
+    // GPU-side fast path and into a CPU readback-flip-reupload of every frame.
+    // The flip costs nothing folded into the fit transform instead: negate the
+    // V scale, exactly as `mirror` already does for U.
+    this.fit[1] = -sy;
+    this.fit[3] = 0.5 * (1 + sy);
     if (this.mirror) {
       // reflect the source horizontally: srcU → 1 - srcU
       this.fit[0] = -sx;
