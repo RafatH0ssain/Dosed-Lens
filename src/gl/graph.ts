@@ -130,6 +130,8 @@ export class Graph {
   private liveSource: HTMLVideoElement | null = null;
   private liveW = 0;
   private liveH = 0;
+  /** currentTime of the last frame uploaded — skips duplicate uploads */
+  private liveTime = -1;
   /** horizontal flip of the source (selfie-mirror for the webcam) */
   mirror = false;
 
@@ -150,6 +152,11 @@ export class Graph {
 
   /** total P1 runs — read by the debug HUD to report the achieved refresh rate */
   analysisRuns = 0;
+
+  /** Frames for which prevPing holds no usable history (set on realloc).
+      temporal.frag can replace the frame outright with uPrev, so presenting a
+      freshly-allocated (empty) feedback texture shows as a full black frame. */
+  private feedbackCold = 0;
 
   // null module so passes compile before the first setSignature call
   private signatureSrc = `
@@ -196,6 +203,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
       this.lumT = createTarget(gl, w, h, { mipmaps: true });
       this.histT = createTarget(gl, w, h);
       this.analysisDirty = true;
+      this.feedbackCold = 1; // prevPing was just reallocated — it holds nothing
     });
   }
 
@@ -227,9 +235,8 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     if (this.srcTex) gl.deleteTexture(this.srcTex);
     this.srcTex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, this.srcTex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    // stored top-down as delivered; computeFit() flips V on the way out
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, source);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -248,6 +255,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     this.liveSource = video;
     this.liveW = 0; // force a fresh allocation on the next upload
     this.liveH = 0;
+    this.liveTime = -1;
   }
 
   clearLiveSource(): void {
@@ -282,7 +290,11 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     const w = v.videoWidth;
     const h = v.videoHeight;
     if (w === 0 || v.readyState < 2) return;
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    // The camera runs at 30 fps but render() ticks at the display rate, so
+    // roughly every other call would re-upload a frame already in srcTex.
+    // Skipping those also skips the conditioning pass (condStale stays false).
+    if (v.currentTime === this.liveTime && this.liveW !== 0) return;
+    this.liveTime = v.currentTime;
     if (!this.srcTex || w !== this.liveW || h !== this.liveH) {
       if (this.srcTex) gl.deleteTexture(this.srcTex);
       this.srcTex = gl.createTexture()!;
@@ -304,7 +316,6 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
       gl.bindTexture(gl.TEXTURE_2D, this.srcTex);
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, v);
     }
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     this.conditioned = true;
     this.condStale = true; // this fresh frame needs conditioning before use
   }
@@ -333,9 +344,14 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     const sx = rw / (this.imgW * s);
     const sy = rh / (this.imgH * s);
     this.fit[0] = sx;
-    this.fit[1] = sy;
     this.fit[2] = 0.5 * (1 - sx);
-    this.fit[3] = 0.5 * (1 - sy);
+    // Textures are uploaded top-down (no UNPACK_FLIP_Y_WEBGL) because setting
+    // that flag on a per-frame video upload can drop the browser off its
+    // GPU-side fast path and into a CPU readback-flip-reupload of every frame.
+    // The flip costs nothing folded into the fit transform instead: negate the
+    // V scale, exactly as `mirror` already does for U.
+    this.fit[1] = -sy;
+    this.fit[3] = 0.5 * (1 + sy);
     if (this.mirror) {
       // reflect the source horizontally: srcU → 1 - srcU
       this.fit[0] = -sx;
@@ -358,7 +374,10 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
     gl.bindTexture(gl.TEXTURE_2D, this.lumT.tex);
     gl.uniform1i(uni(gl, b, 'uLum'), 3);
     gl.activeTexture(gl.TEXTURE4);
-    gl.bindTexture(gl.TEXTURE_2D, this.prevPing.read.tex);
+    // While the feedback is cold, seed it from the frame in flight instead of
+    // the empty buffer: passes that mix or replace with uPrev then see current
+    // content, costing one frame of trails rather than one black frame.
+    gl.bindTexture(gl.TEXTURE_2D, this.feedbackCold > 0 ? sceneTex : this.prevPing.read.tex);
     gl.uniform1i(uni(gl, b, 'uPrev'), 4);
     gl.activeTexture(gl.TEXTURE5);
     gl.bindTexture(gl.TEXTURE_2D, this.flowPing.read.tex);
@@ -509,6 +528,7 @@ vec3 sigTemporal(vec3 col, vec2 uv){ return col; }`;
 
     // the frame just written becomes uPrev for the next one
     this.prevPing.swap();
+    if (this.feedbackCold > 0) this.feedbackCold--; // history is real again
     gl.bindVertexArray(null);
   }
 }

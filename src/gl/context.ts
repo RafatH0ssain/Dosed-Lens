@@ -14,7 +14,14 @@ export interface GLContext {
   onResize(cb: (w: number, h: number) => void): void;
 }
 
-const MAX_DPR = 1.6; // matches phenomenon.html perf choice
+/* The pipeline is fragment-ALU bound (LSD alone runs ~15 fbm calls per pixel
+   across 8 fullscreen passes), so cost scales linearly with backing-store
+   pixels. A desktop retina panel has an enormous CSS-pixel count, and at
+   normal viewing distance the output is low-frequency enough that 1.0 is
+   where the cost/quality knee sits. Phones have far fewer CSS pixels on a
+   much smaller panel, where 1.0 reads as soft — they keep the higher cap and
+   lean on renderScale instead. */
+const MAX_DPR = matchMedia('(pointer:coarse)').matches ? 1.6 : 1.0;
 
 export function createContext(canvas: HTMLCanvasElement): GLContext {
   const gl = canvas.getContext('webgl2', {

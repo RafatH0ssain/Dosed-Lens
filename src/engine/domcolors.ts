@@ -1,6 +1,12 @@
 /** Extract 4 dominant colors + brightest-region position from an image
     (dominants seed the DMT breakthrough palette; brightest point anchors
-    psilocybin's water ripple). */
+    psilocybin's water ripple).
+
+    On a live source this runs several times a second, so the sampling stage
+    is deliberately frugal: one shared canvas, one drawImage, one getImageData
+    per call. The drawImage is the expensive half — pulling a webcam frame into
+    CPU-readable memory forces a readback and a colour-space conversion of the
+    *whole* frame, however small the destination is. */
 
 export interface ImageStats {
   colors: Float32Array; // 4 × RGBA
@@ -10,13 +16,30 @@ export interface ImageStats {
   lumGridSize: number;
 }
 
-export function analyzeImage(img: TexImageSource & CanvasImageSource): ImageStats {
-  const N = 24;
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = N;
-  const g = cv.getContext('2d', { willReadFrequently: true })!;
+const N = 24;
+
+// One canvas for the lifetime of the page. Allocating a fresh one per call
+// (and per call *twice*) churned GPU-backed surfaces at the sample rate.
+let sampleCtx: CanvasRenderingContext2D | null = null;
+
+function sampleCanvas(): CanvasRenderingContext2D {
+  if (!sampleCtx) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = N;
+    sampleCtx = cv.getContext('2d', { willReadFrequently: true })!;
+  }
+  return sampleCtx;
+}
+
+/** Downscale the source to N×N and read it back. The one costly step. */
+function samplePixels(img: CanvasImageSource): Uint8ClampedArray {
+  const g = sampleCanvas();
   g.drawImage(img, 0, 0, N, N);
-  const px = g.getImageData(0, 0, N, N).data;
+  return g.getImageData(0, 0, N, N).data;
+}
+
+export function analyzeImage(img: TexImageSource & CanvasImageSource): ImageStats {
+  const px = samplePixels(img);
   let bi = 0;
   let bl = -1;
   const lumGrid = new Float32Array(N * N);
@@ -30,18 +53,16 @@ export function analyzeImage(img: TexImageSource & CanvasImageSource): ImageStat
     ((bi % N) + 0.5) / N,
     1 - (Math.floor(bi / N) + 0.5) / N, // GL uv, y up
   ]);
-  return { colors: dominantColors(img), bright, lumGrid, lumGridSize: N };
+  // same pixels feed the palette — no second draw/readback of the frame
+  return { colors: paletteFromPixels(px), bright, lumGrid, lumGridSize: N };
 }
 
 export function dominantColors(img: TexImageSource & CanvasImageSource): Float32Array {
-  const N = 24;
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = N;
-  const g = cv.getContext('2d', { willReadFrequently: true })!;
-  g.drawImage(img, 0, 0, N, N);
-  const px = g.getImageData(0, 0, N, N).data;
+  return paletteFromPixels(samplePixels(img));
+}
 
-  // k-means, k=4, few iterations — plenty for palette seeding
+/** k-means, k=4, few iterations — plenty for palette seeding. */
+function paletteFromPixels(px: Uint8ClampedArray): Float32Array {
   const k = 4;
   const cent: number[][] = [];
   for (let i = 0; i < k; i++) {

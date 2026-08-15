@@ -507,20 +507,37 @@ function frame(now: number): void {
 // Adaptive render-scale: drop internal resolution when the framerate sags,
 // recover slowly when it's smooth. Held steady while recording so the encoder
 // never sees a resolution change. Runs on the ~2/s fps tick.
+//
+// Every scale change reallocates the whole target set, which is expensive and
+// briefly resets the temporal feedback buffer, so changes must be rare. A
+// single sagging tick is not enough: the framerate has to stay outside the
+// band for STREAK_TICKS consecutive samples before the scale moves. The band
+// is also wide (45..58) so that the post-downscale framerate cannot immediately
+// re-trigger an upscale — that oscillation was what made the scale thrash.
+const DOWN_FPS = 45;
+const UP_FPS = 58;
+const STREAK_TICKS = 3;
 let qualityCooldown = 0;
+let lowStreak = 0;
+let highStreak = 0;
 function adaptQuality(fps: number): void {
   if (recorder.recording) return;
   if (qualityCooldown > 0) {
     qualityCooldown--;
+    lowStreak = highStreak = 0;
     return;
   }
   const s = ctx.renderScale;
-  if (fps < 45 && s > 0.5) {
-    ctx.setRenderScale(s - 0.15); // back off fast when struggling
-    qualityCooldown = 4; // ~2 s before the next step
-  } else if (fps > 57 && s < 1) {
-    ctx.setRenderScale(s + 0.08); // creep back up when there's headroom
-    qualityCooldown = 6;
+  lowStreak = fps < DOWN_FPS ? lowStreak + 1 : 0;
+  highStreak = fps > UP_FPS ? highStreak + 1 : 0;
+  if (lowStreak >= STREAK_TICKS && s > 0.5) {
+    ctx.setRenderScale(s - 0.15); // back off when the sag is sustained
+    qualityCooldown = 6; // ~3 s before the next step
+    lowStreak = 0;
+  } else if (highStreak >= STREAK_TICKS && s < 1) {
+    ctx.setRenderScale(s + 0.08); // creep back up when there's real headroom
+    qualityCooldown = 8;
+    highStreak = 0;
   }
 }
 
