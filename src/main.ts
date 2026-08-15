@@ -545,9 +545,24 @@ forceResize(ctx);
 if (DEBUG) hud = createDebugHUD(ctx, graph, camera);
 requestAnimationFrame(frame);
 
-// PWA: register the offline service worker (installable + works offline)
+// PWA: register the offline service worker (installable + works offline).
+// Production only. sw.js is stale-while-revalidate — it answers from cache and
+// refreshes in the background — so on the dev server it shadows the bundle you
+// just rebuilt with the previous one, and keeps serving the app on localhost
+// long after vite has stopped. In dev, tear down anything a previous run left
+// registered instead, so the origin cleans itself up on the next page load.
 if ('serviceWorker' in navigator) {
-  addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
+  if (import.meta.env.PROD) {
+    addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  } else {
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((rs) => Promise.all(rs.map((r) => r.unregister())))
+      .catch(() => {});
+    if (typeof caches !== 'undefined') {
+      caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))).catch(() => {});
+    }
+  }
 }
