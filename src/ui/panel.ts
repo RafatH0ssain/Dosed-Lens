@@ -9,6 +9,7 @@ import { createTierSlider } from './slider';
 import { createToggles, ToggleActions } from './toggles';
 import { createOverrides, OverrideCallbacks } from './overrides';
 import { TIER_NAMES, tierIndex } from '../engine/curves';
+import { Spring, VelocityTracker, project, rubberband } from './spring';
 
 const SAMPLES = [
   '01-room-lamp', '02-brick-wall', '03-forest', '05-statue', '06-sky',
@@ -307,15 +308,29 @@ export function createPanel(
   const isMobile = () => matchMedia('(max-width:640px)').matches;
   const OFFSET: Record<Sheet, number> = { full: 0, half: 0.46, closed: 1 };
 
+  // The sheet's position is owned by a spring rather than a CSS transition, so
+  // it can be grabbed and redirected while it is still moving. Apple's drawer
+  // values: a little bounce, because reaching a sheet is always a gesture.
+  let panelH = 1;
+  let dragging = false;
+  const sheetSpring = new Spring(
+    0,
+    (y) => { panel.style.transform = `translateY(${y}px)`; },
+    { damping: 0.8, response: 0.3, epsilon: 0.1 },
+  );
+
+  function measurePanel(): number {
+    panelH = panel.getBoundingClientRect().height || 1;
+    return panelH;
+  }
+
   function applyPanel(): void {
     if (isMobile()) {
       panel.classList.remove('hidden');
-      panel.classList.toggle('sheet-half', sheet === 'half');
-      panel.classList.toggle('sheet-closed', sheet === 'closed');
-      panel.style.transform = '';
+      if (!dragging) sheetSpring.to(OFFSET[sheet] * measurePanel());
       menuBtn.classList.toggle('on', sheet !== 'closed');
     } else {
-      panel.classList.remove('sheet-half', 'sheet-closed');
+      sheetSpring.stop();
       panel.style.transform = '';
       menuBtn.classList.toggle('on', !panel.classList.contains('hidden'));
     }
@@ -373,59 +388,60 @@ export function createPanel(
   applyPanel();
 
   // ---- drag the grip to move/snap the sheet (mobile browse only) ----
-  let dragging = false;
   let startY = 0;
-  let panelH = 1;
-  let lastY = 0;
-  let lastT = 0;
-  let vel = 0;
+  let startOffset = 0;
+  const vt = new VelocityTracker();
 
   grip.addEventListener('pointerdown', (e) => {
     if (!isMobile()) return;
     dragging = true;
+    measurePanel();
+    // start from the live on-screen position, not the logical one, so grabbing
+    // the sheet mid-flight continues from where it visibly is
+    startOffset = sheetSpring.value;
+    sheetSpring.stop();
     startY = e.clientY;
-    panelH = panel.getBoundingClientRect().height;
-    lastY = e.clientY;
-    lastT = performance.now();
-    vel = 0;
+    vt.reset(e.clientY);
     panel.classList.add('dragging');
     try { grip.setPointerCapture(e.pointerId); } catch {}
     e.preventDefault();
   });
+
   grip.addEventListener('pointermove', (e) => {
     if (!dragging) return;
-    const base = OFFSET[sheet] * panelH;
-    const offset = Math.min(panelH, Math.max(0, base + (e.clientY - startY)));
-    panel.style.transform = `translateY(${offset}px)`;
-    const now = performance.now();
-    if (now > lastT) vel = (e.clientY - lastY) / (now - lastT);
-    lastY = e.clientY;
-    lastT = now;
+    vt.add(e.clientY);
+    let offset = startOffset + (e.clientY - startY);
+    // resist past the bounds instead of stopping dead — a hard stop reads as
+    // frozen, progressive resistance reads as "nothing more this way"
+    if (offset < 0) offset = -rubberband(-offset, panelH);
+    else if (offset > panelH) offset = panelH + rubberband(offset - panelH, panelH);
+    sheetSpring.track(offset, vt.velocity);
   });
-  function endDrag(e: PointerEvent): void {
+
+  function endDrag(): void {
     if (!dragging) return;
     dragging = false;
     panel.classList.remove('dragging');
-    const base = OFFSET[sheet] * panelH;
-    const offset = Math.min(panelH, Math.max(0, base + (e.clientY - startY)));
-    sheet = snapSheet(offset / panelH, vel);
-    applyPanel();
+    const v = vt.velocity; // px/s at release
+    // snap to the detent nearest where the flick would *land*, not where the
+    // finger left off, then hand the velocity to the spring so there is no
+    // seam between the drag and the animation
+    sheet = nearestSheet((sheetSpring.value + project(v)) / panelH);
+    sheetSpring.to(OFFSET[sheet] * panelH, v);
+    menuBtn.classList.toggle('on', sheet !== 'closed');
   }
   grip.addEventListener('pointerup', endDrag);
   grip.addEventListener('pointercancel', endDrag);
 
-  function snapSheet(frac: number, v: number): Sheet {
+  function nearestSheet(frac: number): Sheet {
     const order: Sheet[] = ['full', 'half', 'closed'];
-    const offs = [OFFSET.full, OFFSET.half, OFFSET.closed];
-    let idx = 0;
+    let best: Sheet = 'full';
     let bd = Infinity;
-    offs.forEach((o, i) => {
-      const d = Math.abs(o - frac);
-      if (d < bd) { bd = d; idx = i; }
-    });
-    if (v > 1.2 && idx < 2) idx++;
-    else if (v < -1.2 && idx > 0) idx--;
-    return order[idx];
+    for (const s of order) {
+      const d = Math.abs(OFFSET[s] - frac);
+      if (d < bd) { bd = d; best = s; }
+    }
+    return best;
   }
 
   return {
