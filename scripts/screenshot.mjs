@@ -12,9 +12,14 @@ import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const [, , url, out, waitMsArg, wArg, hArg] = process.argv;
+// positional args, plus an optional --eval=<js> run once the app has booted
+// (used to drive the UI into a state a plain URL can't reach, e.g. camera mode)
+const argv = process.argv.slice(2);
+const evalArg = argv.find((a) => a.startsWith('--eval='));
+const evalJs = evalArg ? evalArg.slice('--eval='.length) : null;
+const [url, out, waitMsArg, wArg, hArg] = argv.filter((a) => !a.startsWith('--'));
 if (!url || !out) {
-  console.error('usage: node scripts/screenshot.mjs <url> <out.png> [waitMs] [w] [h]');
+  console.error('usage: node scripts/screenshot.mjs <url> <out.png> [waitMs] [w] [h] [--eval=<js>]');
   process.exit(1);
 }
 const waitMs = Number(waitMsArg ?? 8000);
@@ -43,6 +48,9 @@ const chrome = spawn(chromeBin, [
   `--window-size=${W},${H}`,
   `--user-data-dir=${profile}`,
   '--no-first-run',
+  // synthetic webcam: lets the live-source path be exercised headlessly
+  '--use-fake-device-for-media-stream',
+  '--use-fake-ui-for-media-stream',
   'about:blank',
 ], { stdio: 'ignore' });
 
@@ -86,6 +94,18 @@ ws.onerror = () => { console.error('ws error'); die(1); };
 
 await new Promise((r) => (ws.onopen = r));
 await send('Page.enable');
+if (evalJs) {
+  await new Promise((r) => setTimeout(r, 2500)); // let the app boot first
+  await send('Runtime.enable');
+  const res = await send('Runtime.evaluate', {
+    expression: evalJs,
+    awaitPromise: true,
+    userGesture: true, // getUserMedia and share sheets need real activation
+  });
+  if (res.exceptionDetails) {
+    console.error('--eval threw:', res.exceptionDetails.text);
+  }
+}
 // let the app boot, load its image, and animate in real time
 await new Promise((r) => setTimeout(r, waitMs));
 const shot = await send('Page.captureScreenshot', { format: 'png' });
