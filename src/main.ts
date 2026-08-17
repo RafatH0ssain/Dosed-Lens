@@ -6,9 +6,12 @@ window.addEventListener('error', (e) => {
     const pre = document.createElement('pre');
     pre.className = 'boot-error';
     pre.style.cssText =
+      // literal colours, not custom properties: this path runs when the
+      // stylesheet may not have loaded at all
       'position:fixed;inset:auto 16px 16px 16px;max-height:50vh;overflow:auto;' +
-      'color:#f2a24b;background:rgba(8,7,10,.9);border:1px solid rgba(242,162,75,.4);' +
-      'border-radius:8px;padding:12px;font-size:11px;z-index:99;white-space:pre-wrap;';
+      'font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;' +
+      'color:#d9634a;background:rgba(20,17,14,.94);border:1px solid rgba(217,99,74,.38);' +
+      'border-radius:12px;padding:12px;z-index:99;white-space:pre-wrap;';
     pre.textContent = String(e.error?.stack ?? e.message);
     el.appendChild(pre);
   }
