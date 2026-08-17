@@ -32,7 +32,7 @@
   /* ---- materials ----
      Structural surfaces are heavier and separate regions; interactive
      surfaces are lighter. Bigger surfaces read as thicker glass. */
-  --mat:rgba(20,17,14,.74);         /* panel, sheet, dialog */
+  --mat:rgba(20,17,14,.56);         /* panel, sheet, dialog */
   --mat-thin:rgba(24,20,16,.52);    /* chips over a gradient */
   --mat-solid:#16130f;              /* opaque fallback */
   --edge:rgba(240,236,226,.10);
@@ -94,8 +94,8 @@ button{font-family:inherit;color:inherit}
   width:21rem;max-height:calc(100vh - var(--sp-6));
   overflow-y:auto;overscroll-behavior:contain;
   background:var(--mat);
-  backdrop-filter:blur(24px) saturate(160%);
-  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  backdrop-filter:blur(30px) saturate(175%);
+  -webkit-backdrop-filter:blur(30px) saturate(175%);
   border:1px solid var(--edge);
   border-top-color:var(--edge-top);   /* light catching the top edge */
   border-radius:var(--r-xl);
@@ -151,11 +151,6 @@ button{font-family:inherit;color:inherit}
   margin-top:.15rem;white-space:nowrap;
   transition:color var(--t-base) var(--ease),background var(--t-base) var(--ease);
 }
-.sub{
-  font-size:.8125rem;line-height:1.55;color:var(--ink-2);
-  letter-spacing:0;margin-bottom:var(--sp-2);
-}
-
 .sec{
   font-size:.6875rem;font-weight:500;color:var(--dim);
   letter-spacing:.085em;text-transform:uppercase;
@@ -534,16 +529,36 @@ kbd{
 #app.mode-camera.cam-clean .cam-ov,
 #app.mode-camera.cam-clean #cam-upload,
 #app.mode-camera.cam-clean #cam-video{display:none}
-#app.mode-camera.cam-clean .cam-bottom{background:none;gap:0;border-color:transparent}
-#app.mode-camera.cam-clean .cam-shutter-row{justify-content:center}
+/* Clean mode keeps only the shutter, so the bottom bar must stop being a
+   panel entirely — clearing `background` alone left the desktop rule's blur,
+   border and padding behind as a floating rectangle. */
+#app.mode-camera.cam-clean .cam-bottom{
+  background:none;gap:0;padding:0 0 calc(var(--sp-5) + env(safe-area-inset-bottom));
+  border:none;box-shadow:none;width:auto;
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+#app.mode-camera.cam-clean .cam-shutter-row{justify-content:center;padding:0}
+/* The blur that separates the shutter from the scene follows the button:
+   a circle reaching ~0.8r past its edge, feathered out so it has no seam. */
+#app.mode-camera.cam-clean .cam-shutter::before{
+  content:'';position:absolute;left:50%;top:50%;
+  width:8.3rem;height:8.3rem;                 /* 1.8 x the 4.625rem button */
+  transform:translate(-50%,-50%);border-radius:50%;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  -webkit-mask-image:radial-gradient(closest-side,#000 52%,transparent 100%);
+  mask-image:radial-gradient(closest-side,#000 52%,transparent 100%);
+  pointer-events:none;
+}
 
 .cam-shutter-row{display:flex;align-items:center;justify-content:space-between;padding:.125rem var(--sp-2)}
 .cam-shutter{
+  position:relative;
   width:4.625rem;height:4.625rem;border-radius:50%;
   border:none;background:transparent;cursor:pointer;padding:0;
   display:grid;place-items:center;
 }
 .cam-shutter span{
+  position:relative;z-index:1;      /* above the clean-mode blur disc */
   width:4.625rem;height:4.625rem;border-radius:50%;
   border:3px solid rgba(255,255,255,.94);
   display:grid;place-items:center;
@@ -609,7 +624,6 @@ kbd{
   .sheet-grip:active{cursor:grabbing}
   .sheet-grip:active span{background:var(--ink-2)}
 
-  .sub{display:none}
   #tap{display:none}
   .hd h1{font-size:1.5rem}
 
@@ -633,8 +647,8 @@ kbd{
     border-radius:var(--r-xl);
     border:1px solid var(--edge);border-top-color:var(--edge-top);
     background:var(--mat);
-    backdrop-filter:blur(24px) saturate(160%);
-    -webkit-backdrop-filter:blur(24px) saturate(160%);
+    backdrop-filter:blur(30px) saturate(175%);
+    -webkit-backdrop-filter:blur(30px) saturate(175%);
     padding:var(--sp-4) var(--sp-5);
     box-shadow:0 1.5rem 3rem rgba(0,0,0,.5);
   }
