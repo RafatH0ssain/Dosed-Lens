@@ -15,12 +15,6 @@ const SAMPLES = [
   '01-room-lamp', '02-brick-wall', '03-forest', '05-statue', '06-sky',
 ];
 
-const ABOUT =
-  'A perception-simulation art/education tool: it renders a photo — or your ' +
-  'live camera — as if the camera itself were the altered observer. All ' +
-  'processing happens on your device; nothing is uploaded. Intensity is ' +
-  'expressed in phenomenology-literature tiers, never doses.';
-
 const GATE_KEY = 'dosed-lens-deliriant-ack';
 
 // thin-stroke line icons (currentColor) — quieter than emoji, on-brand
@@ -69,7 +63,6 @@ export function createPanel(
     <div id="panel">
       <div class="sheet-grip" id="grip"><span></span></div>
       <div class="hd"><h1>Dosed<br>Lens</h1><div class="lv" id="lv"></div></div>
-      <div class="sub">${ABOUT}</div>
       <button class="btn wide cam-cta" id="webcam"><span class="dot"></span>use live camera</button>
       <div class="note" id="cam-err"></div>
       <div class="sec">substance</div>
