@@ -97,6 +97,14 @@ A **resolver** (`src/engine/`) turns `profile × intensity × response-curve × 
 
 Profiles are declarative JSON (`src/profiles/*.json`): shared-param curves and ceilings, per-signature parameters, phenomenology `tierNotes`, and `sources`.
 
+### Interface
+
+Two modes share one DOM: a studio **panel** for browsing, and a **camera chrome** (effect reel, intensity, shutter) once the webcam is live. On phones the panel becomes a bottom sheet with three detents.
+
+The sheet is driven by a small spring (`src/ui/spring.ts`, no dependencies) rather than a CSS transition, so it can be grabbed and redirected while still moving — a transition interpolates from a value captured when it started, which makes a mid-flight grab jump. Dragging tracks the pointer 1:1, resists past the bounds via rubber-banding, and on release projects where the flick would come to rest, snaps to the nearest detent, and hands the pointer's exit velocity to the spring so there is no seam between drag and animation.
+
+Design tokens live at the top of `src/ui/styles.css`: a warm bone ink ramp on near-black, with amber reserved for active state, focus and the live indicator. Spacing and radii are in `rem` so a larger text setting scales the layout with it, and tracking is size-specific — negative on display type, positive on small caps. The UI honours `prefers-reduced-motion`, `prefers-reduced-transparency` and `prefers-contrast`.
+
 ### Performance
 
 The pipeline is fragment-ALU bound — LSD alone runs roughly fifteen `fbm` calls per pixel across eight full-screen passes — so cost scales with backing-store pixels. The levers, in order of effect:
