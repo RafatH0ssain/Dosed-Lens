@@ -57,10 +57,6 @@ export function analyzeImage(img: TexImageSource & CanvasImageSource): ImageStat
   return { colors: paletteFromPixels(px), bright, lumGrid, lumGridSize: N };
 }
 
-export function dominantColors(img: TexImageSource & CanvasImageSource): Float32Array {
-  return paletteFromPixels(samplePixels(img));
-}
-
 /** k-means, k=4, few iterations — plenty for palette seeding. */
 function paletteFromPixels(px: Uint8ClampedArray): Float32Array {
   const k = 4;

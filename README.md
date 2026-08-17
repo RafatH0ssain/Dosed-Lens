@@ -99,9 +99,18 @@ Profiles are declarative JSON (`src/profiles/*.json`): shared-param curves and c
 
 ### Performance
 
-Targets 60 fps at 1080p on integrated graphics. Levers: P1 is cached, the pattern/grain passes run at reduced resolution, the particle cap is 200, the history ring is quarter-res, and all uniforms are written in one block with no per-frame allocations in the loop.
+The pipeline is fragment-ALU bound — LSD alone runs roughly fifteen `fbm` calls per pixel across eight full-screen passes — so cost scales with backing-store pixels. The levers, in order of effect:
 
-For the **live webcam source**, the frame is uploaded into the source texture every frame (a cheap `texSubImage2D` reusing the allocation), but the two expensive analyses run on their own throttled clocks: the P1 edge/luminance pass refreshes at ~25 Hz and the CPU dominant-color/bright-point pass (a `getImageData` read that would otherwise stall the pipeline) at ~5 Hz. Distortions stay anchored to the moving image without the feed paying full analysis cost every frame.
+- **Backing store.** Device pixel ratio is capped at 1.0 on desktop, where retina panels have enormous CSS-pixel counts and the output is low-frequency enough not to show it, and at 1.6 on touch, where the panel is small and 1.0 reads as soft.
+- **Adaptive render scale.** Internal resolution steps down when the framerate stays below 45 for three consecutive samples, and creeps back up only above 58. The wide band and the streak requirement keep changes rare: each one reallocates every render target.
+- **Cached analysis.** P1 runs only when the image or resolution changes — on a live source, on a ~25 Hz clock.
+- Fixed low-res melt accumulator (288×180), a 200-particle cap, a quarter-res history ring, and cached uniform locations.
+
+For the **live webcam source**, capture is pinned to 720p30. (`ideal` alone is only a suggestion: a capable camera hands back 1080p or more, and every CPU-touching stage — texture upload, conditioning pass, CPU analysis — is sized by those pixels.) Frames upload via `texSubImage2D` into a reused allocation, and are skipped when `currentTime` shows the frame is already resident, which skips that frame's conditioning pass too. Textures upload top-down with no `UNPACK_FLIP_Y_WEBGL` — setting it on a per-frame video upload can drop the browser off its GPU-side fast path into a CPU readback-flip-reupload — so the vertical flip rides in the cover-fit transform instead, alongside the selfie mirror.
+
+The two analyses run on independent throttled clocks: the P1 edge/luminance pass at ~25 Hz, and the CPU dominant-colour/bright-point pass at ~5 Hz, the latter using one shared canvas with a single `drawImage` and `getImageData` per call. Distortions stay anchored to the moving image without the feed paying full analysis cost every frame.
+
+Add `#debug=1` to the URL for a live HUD: negotiated camera mode, CSS vs backing-store size, effective DPR, render scale, FBO formats, frame times, P1 refresh rate, and jank/long-task counts.
 
 ---
 
